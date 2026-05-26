@@ -1,0 +1,15 @@
+# Build the container image
+podman build -t idt-monitor .
+
+# Run it endlessly with your environment configurations
+podman run -d \
+  -p 3000:3000 \
+  --name idt-monitor-app \
+  -e HO_DB_USER=MYUSER \
+  -e HO_DB_PASSWORD=MYPASSWORD \
+  -e HO_DB_CONNECTSTRING=192.168.1.100:1521/XEPDB1 \
+  -e OUTLET_DB_USER=MYUSER \
+  -e OUTLET_DB_PASSWORD=MYPASSWORD \
+  -e OUTLET_DB_PORT=1521 \
+  -e OUTLET_DB_SERVICE=XE \
+  idt-monitor
