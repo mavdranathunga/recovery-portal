@@ -216,13 +216,23 @@ export default function DiagnosticsPage() {
             <Activity className="h-5 w-5 text-emerald-400" />
             Diagnostics
           </h2>
-          <button
-            onClick={() => router.push('/')}
-            className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-sm bg-slate-800/50 hover:bg-slate-700/50 px-2 py-1 rounded"
-          >
-            <Home className="h-4 w-4" />
-            <span className="hidden sm:inline">Home</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => router.push('/diagnostics/mass-runner')}
+              className="text-indigo-450 hover:text-indigo-300 transition-colors flex items-center gap-1 text-xs bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1.5 rounded border border-indigo-500/20"
+              title="Mass Command Runner"
+            >
+              <Terminal className="h-3.5 w-3.5 text-indigo-400" />
+              <span className="hidden xl:inline">Mass Run</span>
+            </button>
+            <button
+              onClick={() => router.push('/')}
+              className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-sm bg-slate-800/50 hover:bg-slate-700/50 px-2 py-1.5 rounded"
+            >
+              <Home className="h-4 w-4" />
+              <span className="hidden sm:inline">Home</span>
+            </button>
+          </div>
         </div>
         <div className="p-4 border-b border-white/10">
           <div className="relative">

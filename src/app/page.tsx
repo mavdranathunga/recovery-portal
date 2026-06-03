@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Store, Clock, RefreshCw, AlertCircle, CheckCircle2, HardDrive, Activity, ChevronRight, Zap, X } from "lucide-react";
+import { Search, Store, Clock, RefreshCw, AlertCircle, CheckCircle2, HardDrive, Activity, ChevronRight, Zap, X, Database, Terminal } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 export default function Home() {
@@ -272,11 +272,43 @@ export default function Home() {
             <p className="text-slate-400 mb-8 text-sm leading-relaxed flex-1">
               View live telemetry (CPU, RAM, Disk), analyze Oracle/Tomcat health, and execute CLI commands.
             </p>
+            <div className="flex gap-3 mt-auto w-full">
+              <button
+                onClick={() => router.push('/diagnostics')}
+                className="flex-grow bg-slate-800 hover:bg-teal-600 text-white font-medium py-3.5 rounded-xl transition-all duration-300 flex justify-center items-center gap-2 group/btn border border-slate-700 hover:border-teal-500 hover:shadow-[0_0_20px_rgba(13,148,136,0.3)]"
+              >
+                Console
+                <ChevronRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+              </button>
+              <button
+                onClick={() => router.push('/diagnostics/mass-runner')}
+                className="flex-grow bg-slate-950/60 hover:bg-indigo-600/20 text-indigo-400 hover:text-indigo-300 font-medium py-3.5 rounded-xl transition-all duration-300 flex justify-center items-center gap-2 border border-slate-800 hover:border-indigo-500/50"
+              >
+                Mass Run
+                <Terminal className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Oracle Deployer Card */}
+        <div className="group relative bg-slate-900/40 backdrop-blur-sm border border-slate-800 rounded-2xl p-8 hover:bg-slate-800/50 hover:border-orange-500/50 transition-all duration-500 flex flex-col overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="p-3.5 bg-orange-500/10 rounded-xl group-hover:scale-110 group-hover:bg-orange-500/20 transition-all duration-300">
+                <Database className="h-6 w-6 text-orange-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white group-hover:text-orange-400 transition-colors">Oracle Deployer</h2>
+            </div>
+            <p className="text-slate-400 mb-8 text-sm leading-relaxed flex-1">
+              Run and manage database changes and schema updates centrally across all Oracle instances from a single deployment interface.
+            </p>
             <button
-              onClick={() => router.push('/diagnostics')}
-              className="w-full bg-slate-800 hover:bg-teal-600 text-white font-medium py-3.5 rounded-xl transition-all duration-300 flex justify-center items-center gap-2 group/btn border border-slate-700 hover:border-teal-500 hover:shadow-[0_0_20px_rgba(13,148,136,0.3)] mt-auto"
+              onClick={() => window.open('http://oracle-deploy.local', '_blank')}
+              className="w-full bg-slate-800 hover:bg-orange-600 text-white font-medium py-3.5 rounded-xl transition-all duration-300 flex justify-center items-center gap-2 group/btn border border-slate-700 hover:border-orange-500 hover:shadow-[0_0_20px_rgba(234,88,12,0.3)] mt-auto"
             >
-              Launch Console
+              Open Deployer
               <ChevronRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
             </button>
           </div>
