@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBranchIpMap } from "@/lib/db";
+import { getBranchIpMap, parseOrg } from "@/lib/db";
 import { executeSshCommand } from "@/lib/ssh";
 
 export const dynamic = "force-dynamic";
@@ -9,14 +9,17 @@ export async function GET(
   { params }: { params: Promise<{ branch_id: string }> }
 ) {
   const { branch_id } = await params;
+  const { searchParams } = new URL(request.url);
+  const org = parseOrg(searchParams.get("org"));
 
   if (!branch_id) {
     return NextResponse.json({ error: "Missing branch_id" }, { status: 400 });
   }
 
   try {
-    const ipMap = await getBranchIpMap();
+    const ipMap = await getBranchIpMap(org);
     const ip = ipMap.get(branch_id.toUpperCase());
+
 
     if (!ip) {
       return NextResponse.json({ error: `Could not find IP for branch ${branch_id}` }, { status: 404 });

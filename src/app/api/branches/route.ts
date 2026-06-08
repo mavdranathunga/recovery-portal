@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { getHoConnection } from "@/lib/db";
+import { getHoConnectionByOrg, parseOrg } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const org = parseOrg(searchParams.get("org"));
+
   let connection;
   try {
-    connection = await getHoConnection();
+    connection = await getHoConnectionByOrg(org);
 
     const query = `
       SELECT 
@@ -51,9 +54,9 @@ export async function GET() {
       return a.id.localeCompare(b.id);
     });
 
-    return NextResponse.json({ branches });
+    return NextResponse.json({ branches, org });
   } catch (error: any) {
-    console.error("Error fetching branches:", error);
+    console.error(`Error fetching branches (org=${org}):`, error);
     return NextResponse.json({ error: "Failed to fetch branches" }, { status: 500 });
   } finally {
     if (connection) {

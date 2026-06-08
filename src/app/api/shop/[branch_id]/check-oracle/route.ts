@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBranchIpMap, getOutletConnection } from "@/lib/db";
+import { getBranchIpMap, parseOrg, getOutletConnection } from "@/lib/db";
 import type { Connection } from "oracledb";
 
 export const dynamic = "force-dynamic";
@@ -9,14 +9,17 @@ export async function GET(
   { params }: { params: Promise<{ branch_id: string }> }
 ) {
   const { branch_id } = await params;
+  const { searchParams } = new URL(request.url);
+  const org = parseOrg(searchParams.get("org"));
 
   if (!branch_id) {
     return NextResponse.json({ error: "Missing branch_id" }, { status: 400 });
   }
 
   try {
-    const branchMap = await getBranchIpMap();
+    const branchMap = await getBranchIpMap(org);
     const ip = branchMap.get(branch_id);
+
 
     if (!ip) {
       return NextResponse.json({ error: `No IP found for branch ${branch_id}` }, { status: 404 });

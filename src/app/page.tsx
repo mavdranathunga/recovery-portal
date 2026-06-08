@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Store, Clock, RefreshCw, AlertCircle, CheckCircle2, HardDrive, Activity, ChevronRight, Zap, X, Database, Terminal } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { useOrg } from "@/lib/OrgContext";
 
 export default function Home() {
   const router = useRouter();
+  const { org } = useOrg();
   const [idtQuery, setIdtQuery] = useState("");
   const [shopQuery, setShopQuery] = useState("");
   const [syncQuery, setSyncQuery] = useState("");
@@ -19,14 +21,14 @@ export default function Home() {
   const handleIdtSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (idtQuery.trim()) {
-      router.push(`/idt/${encodeURIComponent(idtQuery.trim())}`);
+      router.push(`/idt/${encodeURIComponent(idtQuery.trim())}?org=${org}`);
     }
   };
 
   const handleShopSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (shopQuery.trim()) {
-      router.push(`/shop/${encodeURIComponent(shopQuery.trim())}`);
+      router.push(`/shop/${encodeURIComponent(shopQuery.trim())}?org=${org}`);
     }
   };
 
@@ -40,7 +42,7 @@ export default function Home() {
     setSyncResult(null);
 
     try {
-      const res = await fetch(`/api/sync/${branch}`);
+      const res = await fetch(`/api/sync/${branch}?org=${org}`);
       const json = await res.json();
 
       if (json.error) {
@@ -54,6 +56,7 @@ export default function Home() {
       setSyncLoading(false);
     }
   };
+
 
   return (
     <div className="relative min-h-[85vh] flex flex-col items-center py-16 px-4">

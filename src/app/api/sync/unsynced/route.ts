@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { getHoConnection } from "@/lib/db";
+import { getHoConnectionByOrg, parseOrg } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const hours = Math.max(0.5, Math.min(72, parseFloat(searchParams.get("hours") || "3")));
+  const org = parseOrg(searchParams.get("org"));
 
   let connection;
   try {
-    connection = await getHoConnection();
+    connection = await getHoConnectionByOrg(org);
 
     const query = `
       SELECT  s.BRANCHID,
@@ -35,9 +36,9 @@ export async function GET(request: Request) {
       lastSyncTime: row.LAST_SYNC_TIME,
     })) || [];
 
-    return NextResponse.json({ unsynced, hours });
+    return NextResponse.json({ unsynced, hours, org });
   } catch (error: any) {
-    console.error("Error fetching unsynced branches:", error);
+    console.error(`Error fetching unsynced branches (org=${org}):`, error);
     return NextResponse.json({ error: "Failed to fetch unsynced branches" }, { status: 500 });
   } finally {
     if (connection) {
@@ -49,3 +50,4 @@ export async function GET(request: Request) {
     }
   }
 }
+

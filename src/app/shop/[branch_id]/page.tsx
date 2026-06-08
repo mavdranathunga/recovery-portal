@@ -5,6 +5,8 @@ import { Store, RefreshCw, AlertCircle, ArrowRight, Search, Clock, Activity } fr
 import { formatDate, getStatusColor, cn } from "@/lib/utils";
 import Link from "next/link";
 
+import { useOrg } from "@/lib/OrgContext";
+
 interface ShopIdtRecord {
   dpn_id: string;
   dpn_src_branchid: string;
@@ -31,6 +33,7 @@ interface ShopResponse {
 export default function ShopMonitorPage({ params }: { params: Promise<{ branch_id: string }> }) {
   const unwrappedParams = use(params);
   const branch_id = unwrappedParams.branch_id.toUpperCase();
+  const { org } = useOrg();
 
   const [data, setData] = useState<ShopResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +44,7 @@ export default function ShopMonitorPage({ params }: { params: Promise<{ branch_i
   const fetchShopData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/shop/${branch_id}?limit=100`);
+      const res = await fetch(`/api/shop/${branch_id}?limit=100&org=${org}`);
       if (!res.ok) {
         throw new Error("Failed to fetch shop data. Status: " + res.status);
       }
@@ -60,7 +63,8 @@ export default function ShopMonitorPage({ params }: { params: Promise<{ branch_i
 
   useEffect(() => {
     fetchShopData();
-  }, [branch_id]);
+  }, [branch_id, org]);
+
 
   if (loading) {
     return (

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Server, Activity, RefreshCw, ChevronRight, Home, Cpu, Database, HardDrive, Play, Search, ArrowLeft, Terminal, CheckCircle2, XCircle, Maximize2, Minimize2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useOrg } from "@/lib/OrgContext";
 
 interface Branch {
   id: string;
@@ -21,6 +22,7 @@ interface ActionResponse {
 
 export default function DiagnosticsPage() {
   const router = useRouter();
+  const { org } = useOrg();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [filteredBranches, setFilteredBranches] = useState<Branch[]>([]);
   const [search, setSearch] = useState("");
@@ -40,7 +42,9 @@ export default function DiagnosticsPage() {
   const [tomcatStatus, setTomcatStatus] = useState<{ loading: boolean; success?: boolean; msg?: string }>({ loading: false });
 
   useEffect(() => {
-    fetch("/api/branches")
+    setLoading(true);
+    setSelectedBranch(null); // Reset selection on org switch
+    fetch(`/api/branches?org=${org}`)
       .then(res => res.json())
       .then(data => {
         if (data.branches) {
@@ -53,7 +57,7 @@ export default function DiagnosticsPage() {
         console.error(err);
         setLoading(false);
       });
-  }, []);
+  }, [org]);
 
   useEffect(() => {
     const q = search.toLowerCase();
@@ -63,7 +67,7 @@ export default function DiagnosticsPage() {
   const fetchStats = async (branchId: string) => {
     setLoadingStats(true);
     try {
-      const res = await fetch(`/api/shop/${branchId}/cmd`, {
+      const res = await fetch(`/api/shop/${branchId}/cmd?org=${org}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "system_stats" })
@@ -84,7 +88,7 @@ export default function DiagnosticsPage() {
   const checkDb = async (branchId: string) => {
     setDbStatus({ loading: true });
     try {
-      const res = await fetch(`/api/shop/${branchId}/check-oracle`);
+      const res = await fetch(`/api/shop/${branchId}/check-oracle?org=${org}`);
       const data = await res.json();
       setDbStatus({ loading: false, success: data.success, msg: data.message || data.error });
     } catch (err: any) {
@@ -95,13 +99,14 @@ export default function DiagnosticsPage() {
   const checkTomcat = async (branchId: string) => {
     setTomcatStatus({ loading: true });
     try {
-      const res = await fetch(`/api/shop/${branchId}/check-tomcat`);
+      const res = await fetch(`/api/shop/${branchId}/check-tomcat?org=${org}`);
       const data = await res.json();
       setTomcatStatus({ loading: false, success: data.success, msg: data.message || data.error });
     } catch (err: any) {
       setTomcatStatus({ loading: false, success: false, msg: err.message });
     }
   };
+
 
   const handleSelectBranch = (b: Branch) => {
     setSelectedBranch(b);
@@ -121,7 +126,7 @@ export default function DiagnosticsPage() {
     setLoadingAction(action);
     setTerminalOutput(prev => prev + `\n$ [${action}]\n`);
     try {
-      const res = await fetch(`/api/shop/${selectedBranch.id}/cmd`, {
+      const res = await fetch(`/api/shop/${selectedBranch.id}/cmd?org=${org}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action })
@@ -159,11 +164,12 @@ export default function DiagnosticsPage() {
     setTerminalOutput(prev => prev + `\n$ ${cmdToRun}\n`);
 
     try {
-      const res = await fetch(`/api/shop/${selectedBranch.id}/cmd`, {
+      const res = await fetch(`/api/shop/${selectedBranch.id}/cmd?org=${org}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "custom", command: cmdToRun })
       });
+
       const data: ActionResponse = await res.json();
 
       let out = "";

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getHoConnection, getBranchIpMap, getStatusText } from "@/lib/db";
+import { getHoConnectionByOrg, getStatusText, parseOrg } from "@/lib/db";
 import type { Connection } from "oracledb";
 
 export const dynamic = "force-dynamic";
@@ -9,13 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ branch_id: string }> }
 ) {
   const { branch_id } = await params;
+  const { searchParams } = new URL(request.url);
+  const org = parseOrg(searchParams.get("org"));
 
   if (!branch_id) {
     return NextResponse.json({ error: "Missing branch_id" }, { status: 400 });
   }
 
   // Optional: Read pagination or limit parameters from URL
-  const { searchParams } = new URL(request.url);
   const limit = parseInt(searchParams.get("limit") || "50", 10);
 
   const query = `
@@ -38,7 +39,8 @@ export async function GET(
   let hoConn: Connection | null = null;
 
   try {
-    hoConn = await getHoConnection();
+    hoConn = await getHoConnectionByOrg(org);
+
 
     // To monitor a shop efficiently, we first ask HO "what IDTs exist for this shop?"
     // Contacting the shop database to list 50 records right away is slow and only 

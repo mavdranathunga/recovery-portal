@@ -9,6 +9,10 @@ try {
 }
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
+export type OrgId = "sathosa" | "idl";
+
+// ─── HO Connections ──────────────────────────────────────────────────────────
+
 export async function getHoConnection(): Promise<oracledb.Connection> {
   return await oracledb.getConnection({
     user: process.env.HO_DB_USER,
@@ -16,6 +20,21 @@ export async function getHoConnection(): Promise<oracledb.Connection> {
     connectString: process.env.HO_DB_CONNECTSTRING,
   });
 }
+
+export async function getIdlHoConnection(): Promise<oracledb.Connection> {
+  return await oracledb.getConnection({
+    user: process.env.HO_DB_USER,          // Same user
+    password: process.env.HO_DB_PASSWORD,  // Same password
+    connectString: process.env.IDL_HO_DB_CONNECTSTRING,
+  });
+}
+
+/** Returns the correct HO connection for the given org. */
+export async function getHoConnectionByOrg(org: OrgId): Promise<oracledb.Connection> {
+  return org === "idl" ? getIdlHoConnection() : getHoConnection();
+}
+
+// ─── Outlet Connection ───────────────────────────────────────────────────────
 
 /**
  * Returns a standalone thin connection to a specific outlet database.
@@ -38,25 +57,35 @@ export async function getOutletConnection(
   });
 }
 
-// In-memory cache for branch map to avoid hitting HO DB excessively
-let branchMapCache: Map<string, string> | null = null;
-let branchNameCache: Map<string, string> | null = null;
-let branchMapTimestamp = 0;
+// ─── Branch Map Cache (per-org) ───────────────────────────────────────────────
+
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+interface OrgCache {
+  branchMap: Map<string, string> | null;
+  branchNameMap: Map<string, string> | null;
+  timestamp: number;
+}
+
+const orgCaches: Record<OrgId, OrgCache> = {
+  sathosa: { branchMap: null, branchNameMap: null, timestamp: 0 },
+  idl:     { branchMap: null, branchNameMap: null, timestamp: 0 },
+};
+
 /**
- * Fetches the mappings of Branch ID to IP Address from the HO database.
- * Uses a simple timestamp cache.
+ * Fetches the mappings of Branch ID to IP Address from the specified org's HO database.
+ * Uses a simple timestamp cache per org.
  */
-export async function getBranchIpMap(): Promise<Map<string, string>> {
+export async function getBranchIpMap(org: OrgId = "sathosa"): Promise<Map<string, string>> {
+  const cache = orgCaches[org];
   const now = Date.now();
-  if (branchMapCache && now - branchMapTimestamp < CACHE_TTL_MS) {
-    return branchMapCache;
+  if (cache.branchMap && now - cache.timestamp < CACHE_TTL_MS) {
+    return cache.branchMap;
   }
 
   let connection;
   try {
-    connection = await getHoConnection();
+    connection = await getHoConnectionByOrg(org);
     const result = await connection.execute<{
       BRANCH_ID: string;
       IP_ADDRESS: string;
@@ -65,26 +94,22 @@ export async function getBranchIpMap(): Promise<Map<string, string>> {
     const map = new Map<string, string>();
     if (result.rows) {
       result.rows.forEach((row: any) => {
-        // Some Oracle DBs might pad or trim differently, so we trim.
         if (row.BRANCH_ID && row.IP_ADDRESS) {
           map.set(row.BRANCH_ID.trim(), row.IP_ADDRESS.trim());
         }
       });
     }
 
-    branchMapCache = map;
-    branchMapTimestamp = now;
+    cache.branchMap = map;
+    cache.timestamp = now;
     return map;
   } catch (err) {
-    console.error("Error fetching branch IP map:", err);
-    // If we fail but have stale cache, return it
-    if (branchMapCache) return branchMapCache;
+    console.error(`Error fetching branch IP map for org=${org}:`, err);
+    if (cache.branchMap) return cache.branchMap;
     throw err;
   } finally {
     if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
+      try { await connection.close(); } catch (err) {
         console.error("Error closing HO connection in getBranchIpMap:", err);
       }
     }
@@ -92,17 +117,18 @@ export async function getBranchIpMap(): Promise<Map<string, string>> {
 }
 
 /**
- * Fetches the mappings of Branch ID to Branch Name from the HO database.
+ * Fetches the mappings of Branch ID to Branch Name from the specified org's HO database.
  */
-export async function getBranchNameMap(): Promise<Map<string, string>> {
+export async function getBranchNameMap(org: OrgId = "sathosa"): Promise<Map<string, string>> {
+  const cache = orgCaches[org];
   const now = Date.now();
-  if (branchNameCache && now - branchMapTimestamp < CACHE_TTL_MS) {
-    return branchNameCache;
+  if (cache.branchNameMap && now - cache.timestamp < CACHE_TTL_MS) {
+    return cache.branchNameMap;
   }
 
   let connection;
   try {
-    connection = await getHoConnection();
+    connection = await getHoConnectionByOrg(org);
     const result = await connection.execute<{
       BRANCH_ID: string;
       BRANCH_NAME: string;
@@ -118,21 +144,27 @@ export async function getBranchNameMap(): Promise<Map<string, string>> {
       });
     }
 
-    console.log(`Loaded ${map.size} branch names from HO.`);
-    branchNameCache = map;
-    branchMapTimestamp = now; // Update timestamp to prevent immediate re-fetch
+    console.log(`Loaded ${map.size} branch names from HO (org=${org}).`);
+    cache.branchNameMap = map;
+    cache.timestamp = now;
     return map;
   } catch (err) {
-    console.error("Error fetching branch name map:", err);
-    if (branchNameCache) return branchNameCache;
+    console.error(`Error fetching branch name map for org=${org}:`, err);
+    if (cache.branchNameMap) return cache.branchNameMap;
     throw err;
   } finally {
     if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {}
+      try { await connection.close(); } catch (err) {}
     }
   }
+}
+
+/**
+ * Parses an org string from a query param into a validated OrgId.
+ * Defaults to "sathosa" for unknown values.
+ */
+export function parseOrg(raw: string | null | undefined): OrgId {
+  return raw === "idl" ? "idl" : "sathosa";
 }
 
 /**

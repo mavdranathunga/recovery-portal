@@ -5,6 +5,8 @@ import { ArrowRight, CheckCircle2, Clock, MapPin, Database, RefreshCw, AlertCirc
 import { formatDate, getStatusColor, cn } from "@/lib/utils";
 import Link from "next/link";
 
+import { useOrg } from "@/lib/OrgContext";
+
 interface IdtRecord {
   dpn_id: string;
   dpn_src_branchid: string;
@@ -38,6 +40,7 @@ interface IdtResponse {
 export default function IdtTrackerPage({ params }: { params: Promise<{ dpn_id: string }> }) {
   const unwrappedParams = use(params);
   const dpn_id = unwrappedParams.dpn_id;
+  const { org } = useOrg();
 
   const [data, setData] = useState<IdtResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +49,8 @@ export default function IdtTrackerPage({ params }: { params: Promise<{ dpn_id: s
   const fetchIdtData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/idt/${dpn_id}`);
+      const res = await fetch(`/api/idt/${dpn_id}?org=${org}`);
+
       if (!res.ok) {
         throw new Error("Failed to fetch IDT data. Status: " + res.status);
       }
@@ -65,7 +69,8 @@ export default function IdtTrackerPage({ params }: { params: Promise<{ dpn_id: s
 
   useEffect(() => {
     fetchIdtData();
-  }, [dpn_id]);
+  }, [dpn_id, org]);
+
 
   if (loading) {
     return (

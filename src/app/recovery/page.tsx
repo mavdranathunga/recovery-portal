@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from "react";
 import { Terminal, ServerCrash, Play, RefreshCw, CheckCircle2, AlertCircle, ChevronRight, Search, ChevronLeft, FileWarning, ArrowLeft, Home, Wifi, WifiOff, Signal } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { useOrg } from "@/lib/OrgContext";
+
 interface Branch {
   id: string;
   name: string;
@@ -13,6 +15,7 @@ interface Branch {
 function RecoveryPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { org } = useOrg();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [filteredBranches, setFilteredBranches] = useState<Branch[]>([]);
   const [search, setSearch] = useState("");
@@ -45,7 +48,8 @@ function RecoveryPageContent() {
   const [pingStates, setPingStates] = useState<Record<string, 'loading' | 'up' | 'down' | 'unknown'>>({});
 
   useEffect(() => {
-    fetch("/api/branches")
+    setLoading(true);
+    fetch(`/api/branches?org=${org}`)
       .then(res => res.json())
       .then(data => {
         if (data.branches) {
@@ -58,7 +62,8 @@ function RecoveryPageContent() {
         console.error(err);
         setLoading(false);
       });
-  }, []);
+  }, [org]);
+
 
   // Auto-select branch from URL query param (for middle-click new-tab)
   useEffect(() => {
@@ -111,7 +116,7 @@ function RecoveryPageContent() {
     setShowConfirm(false);
 
     try {
-      const res = await fetch(`/api/recovery/${targetBranch.id}/status`);
+      const res = await fetch(`/api/recovery/${targetBranch.id}/status?org=${org}`);
       const data = await res.json();
       if (data.error) {
         setStatusError(data.error + (data.details ? `: ${data.details}` : ""));
@@ -133,7 +138,8 @@ function RecoveryPageContent() {
     setExecResult({ output: "", error_output: "", success: true });
 
     try {
-      const res = await fetch(`/api/recovery/${selectedBranch.id}/execute`, { method: "POST" });
+      const res = await fetch(`/api/recovery/${selectedBranch.id}/execute?org=${org}`, { method: "POST" });
+
 
       if (!res.ok) {
         const data = await res.json();
@@ -187,7 +193,7 @@ function RecoveryPageContent() {
     setShowUnprocessed(false);
     setReturnTo(null);
     try {
-      const res = await fetch(`/api/sync/unsynced?hours=${h}`);
+      const res = await fetch(`/api/sync/unsynced?hours=${h}&org=${org}`);
       const data = await res.json();
       if (data.unsynced) {
         setUnsyncedBranches(data.unsynced);
@@ -207,7 +213,7 @@ function RecoveryPageContent() {
     setShowUnsynced(false);
     setReturnTo(null);
     try {
-      const res = await fetch(`/api/sync/unprocessed?minutes=${m}`);
+      const res = await fetch(`/api/sync/unprocessed?minutes=${m}&org=${org}`);
       const data = await res.json();
       if (data.unprocessed) {
         setUnprocessedFiles(data.unprocessed);
@@ -223,6 +229,7 @@ function RecoveryPageContent() {
       setUnprocessedLoading(false);
     }
   };
+
 
   const handlePromptRecovery = (branch: Branch) => {
     // Track where to return to before clearing the list views
@@ -256,7 +263,7 @@ function RecoveryPageContent() {
   const handlePing = async (branchId: string) => {
     setPingStates(prev => ({ ...prev, [branchId]: 'loading' }));
     try {
-      const res = await fetch(`/api/ping/${branchId}`);
+      const res = await fetch(`/api/ping/${branchId}?org=${org}`);
       const data = await res.json();
       if (data.error || !data.reachable) {
         setPingStates(prev => ({ ...prev, [branchId]: 'down' }));
@@ -266,6 +273,7 @@ function RecoveryPageContent() {
     } catch {
       setPingStates(prev => ({ ...prev, [branchId]: 'down' }));
     }
+
   };
 
   return (

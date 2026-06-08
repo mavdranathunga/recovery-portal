@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getHoConnection } from "@/lib/db";
+import { getHoConnectionByOrg, parseOrg } from "@/lib/db";
 import type { Connection } from "oracledb";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ branch_id: string }> }
 ) {
   const { branch_id } = await params;
+  const { searchParams } = new URL(request.url);
+  const org = parseOrg(searchParams.get("org"));
 
   if (!branch_id) {
     return NextResponse.json({ error: "Missing branch_id" }, { status: 400 });
@@ -17,7 +19,7 @@ export async function GET(
   let hoConn: Connection | null = null;
   
   try {
-    hoConn = await getHoConnection();
+    hoConn = await getHoConnectionByOrg(org);
     
     const syncQuery = `SELECT LAST_SYNC_TIME FROM TBL_LOG_SYNC_STATUS WHERE BRANCHID = :1`;
     const nameQuery = `SELECT BRANCH_NAME FROM TBL_MST_BRANCH WHERE BRANCH_ID = :1`;
@@ -39,11 +41,12 @@ export async function GET(
     return NextResponse.json({
       branch_id: branch_id.toUpperCase(),
       branch_name,
-      last_sync_time
+      last_sync_time,
+      org,
     });
 
   } catch (err: any) {
-    console.error("Error in Sync API:", err);
+    console.error(`Error in Sync API (org=${org}):`, err);
     return NextResponse.json({ error: "Backend error", details: err.message }, { status: 500 });
   } finally {
     if (hoConn) {

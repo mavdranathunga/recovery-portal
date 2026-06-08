@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { getHoConnection } from "@/lib/db";
+import { getHoConnectionByOrg, parseOrg } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const minutes = Math.max(1, Math.min(1440, parseInt(searchParams.get("minutes") || "5", 10)));
+  const org = parseOrg(searchParams.get("org"));
 
   let connection;
   try {
-    connection = await getHoConnection();
+    connection = await getHoConnectionByOrg(org);
 
     const query = `
       SELECT *
@@ -30,9 +31,9 @@ export async function GET(request: Request) {
       return obj;
     }) || [];
 
-    return NextResponse.json({ unprocessed, minutes });
+    return NextResponse.json({ unprocessed, minutes, org });
   } catch (error: any) {
-    console.error("Error fetching unprocessed files:", error);
+    console.error(`Error fetching unprocessed files (org=${org}):`, error);
     return NextResponse.json({ error: "Failed to fetch unprocessed files" }, { status: 500 });
   } finally {
     if (connection) {
@@ -44,3 +45,4 @@ export async function GET(request: Request) {
     }
   }
 }
+

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBranchIpMap } from "@/lib/db";
+import { getBranchIpMap, parseOrg } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -8,20 +8,22 @@ export async function GET(
   { params }: { params: Promise<{ branch_id: string }> }
 ) {
   const { branch_id } = await params;
+  const { searchParams } = new URL(request.url);
+  const org = parseOrg(searchParams.get("org"));
 
   if (!branch_id) {
     return NextResponse.json({ error: "Missing branch_id" }, { status: 400 });
   }
 
   try {
-    const branchMap = await getBranchIpMap();
+    const branchMap = await getBranchIpMap(org);
     const ip = branchMap.get(branch_id);
 
     if (!ip) {
       return NextResponse.json({ error: `No IP found for branch ${branch_id}` }, { status: 404 });
     }
 
-    const targetUrl = `http://${ip}:8181/sathosa`;
+    const targetUrl = org === "idl" ? `http://${ip}:8181/FineSpirits/` : `http://${ip}:8181/sathosa`;
     
     // Fetch with an AbortController for a 5 second timeout
     const controller = new AbortController();

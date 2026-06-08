@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getHoConnection, getOutletConnection, getBranchIpMap, getBranchNameMap, getStatusText } from "@/lib/db";
+import { getHoConnectionByOrg, getOutletConnection, getBranchIpMap, getBranchNameMap, getStatusText, parseOrg } from "@/lib/db";
 import type { Connection } from "oracledb";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +10,8 @@ export async function GET(
 ) {
   // Await the params since Next.js 15+ standardizes this
   const { dpn_id } = await params;
+  const { searchParams } = new URL(request.url);
+  const org = parseOrg(searchParams.get("org"));
 
   if (!dpn_id) {
     return NextResponse.json({ error: "Missing dpn_id" }, { status: 400 });
@@ -33,9 +35,10 @@ export async function GET(
   let hoConn: Connection | null = null;
 
   try {
-    hoConn = await getHoConnection();
-    const branchMap = await getBranchIpMap();
-    const nameMap = await getBranchNameMap();
+    hoConn = await getHoConnectionByOrg(org);
+    const branchMap = await getBranchIpMap(org);
+    const nameMap = await getBranchNameMap(org);
+
 
     // 1. Fetch from HO
     const hoResult = await hoConn.execute<any>(query, [dpn_id], { outFormat: 4002 /* oracledb.OUT_FORMAT_OBJECT */ });

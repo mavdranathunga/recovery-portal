@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Terminal, RefreshCw, Search, HardDrive, CheckCircle2, AlertCircle, ChevronLeft, Clock, FileText, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useOrg } from "@/lib/OrgContext";
 
 interface Branch {
   id: string;
@@ -21,6 +22,7 @@ interface DumpStatus {
 
 export default function OfflineDumpPage() {
   const router = useRouter();
+  const { org } = useOrg();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ export default function OfflineDumpPage() {
   const [outdatedBranches, setOutdatedBranches] = useState<(Branch & { statusMsg: string; date: string | null })[]>([]);
 
   useEffect(() => {
-    fetch("/api/branches")
+    fetch(`/api/branches?org=${org}`)
       .then(res => res.json())
       .then(data => {
         if (data.branches) {
@@ -60,7 +62,7 @@ export default function OfflineDumpPage() {
         console.error(err);
         setLoading(false);
       });
-  }, []);
+  }, [org]);
 
   const filteredBranches = branches.filter(b => {
     const q = search.toLowerCase();
@@ -85,7 +87,7 @@ export default function OfflineDumpPage() {
     setTillsError(null);
 
     try {
-      const res = await fetch(`/api/offline-dump/${branchId}/tills`);
+      const res = await fetch(`/api/offline-dump/${branchId}/tills?org=${org}`);
       const data = await res.json();
 
       if (data.error) {
@@ -105,7 +107,7 @@ export default function OfflineDumpPage() {
   const checkServerDump = async (branchId: string) => {
     setServerDumpLoading(true);
     try {
-      const res = await fetch(`/api/offline-dump/${branchId}/status/server`, { method: 'POST' });
+      const res = await fetch(`/api/offline-dump/${branchId}/status/server?org=${org}`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         setServerDumpStatus(data.status);
@@ -120,7 +122,7 @@ export default function OfflineDumpPage() {
   const checkTillDump = async (branchId: string, tillIp: string) => {
     setTillDumpLoading(prev => ({ ...prev, [tillIp]: true }));
     try {
-      const res = await fetch(`/api/offline-dump/${branchId}/status/till`, {
+      const res = await fetch(`/api/offline-dump/${branchId}/status/till?org=${org}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tillIp })
@@ -146,7 +148,7 @@ export default function OfflineDumpPage() {
 
     setTillCronjobLoading(prev => ({ ...prev, [tillIp]: true }));
     try {
-      const res = await fetch(`/api/offline-dump/${branchId}/cronjob`, {
+      const res = await fetch(`/api/offline-dump/${branchId}/cronjob?org=${org}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tillIp })
@@ -182,7 +184,7 @@ export default function OfflineDumpPage() {
 
       const promises = chunk.map(async (branch) => {
         try {
-          const res = await fetch(`/api/offline-dump/${branch.id}/status/server`, { method: 'POST' });
+          const res = await fetch(`/api/offline-dump/${branch.id}/status/server?org=${org}`, { method: 'POST' });
           const data = await res.json();
 
           if (data.success && !data.status.isHealthy) {
