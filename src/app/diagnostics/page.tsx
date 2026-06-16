@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Server, Activity, RefreshCw, ChevronRight, Home, Cpu, Database, HardDrive, Play, Search, ArrowLeft, Terminal, CheckCircle2, XCircle, Maximize2, Minimize2 } from "lucide-react";
+import { Server, Activity, RefreshCw, ChevronRight, Home, Cpu, Database, HardDrive, Play, Search, ArrowLeft, Terminal, CheckCircle2, XCircle, Maximize2, Minimize2, Wifi, WifiOff, Signal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useOrg } from "@/lib/OrgContext";
@@ -40,6 +40,9 @@ export default function DiagnosticsPage() {
 
   const [dbStatus, setDbStatus] = useState<{ loading: boolean; success?: boolean; msg?: string }>({ loading: false });
   const [tomcatStatus, setTomcatStatus] = useState<{ loading: boolean; success?: boolean; msg?: string }>({ loading: false });
+
+  // Per-branch ping state
+  const [pingStates, setPingStates] = useState<Record<string, 'loading' | 'up' | 'down' | 'unknown'>>({});
 
   useEffect(() => {
     setLoading(true);
@@ -119,6 +122,22 @@ export default function DiagnosticsPage() {
     fetchStats(b.id);
     checkDb(b.id);
     checkTomcat(b.id);
+    handlePing(b.id);
+  };
+
+  const handlePing = async (branchId: string) => {
+    setPingStates(prev => ({ ...prev, [branchId]: 'loading' }));
+    try {
+      const res = await fetch(`/api/ping/${branchId}?org=${org}`);
+      const data = await res.json();
+      if (data.error || !data.reachable) {
+        setPingStates(prev => ({ ...prev, [branchId]: 'down' }));
+      } else {
+        setPingStates(prev => ({ ...prev, [branchId]: 'up' }));
+      }
+    } catch {
+      setPingStates(prev => ({ ...prev, [branchId]: 'down' }));
+    }
   };
 
   const runAction = async (action: string) => {
@@ -223,14 +242,14 @@ export default function DiagnosticsPage() {
             Diagnostics
           </h2>
           <div className="flex gap-2">
-            <button
+            {/* <button
               onClick={() => router.push('/diagnostics/mass-runner')}
               className="text-indigo-450 hover:text-indigo-300 transition-colors flex items-center gap-1 text-xs bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1.5 rounded border border-indigo-500/20"
               title="Mass Command Runner"
             >
               <Terminal className="h-3.5 w-3.5 text-indigo-400" />
               <span className="hidden xl:inline">Mass Run</span>
-            </button>
+            </button> */}
             <button
               onClick={() => router.push('/')}
               className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-sm bg-slate-800/50 hover:bg-slate-700/50 px-2 py-1.5 rounded"
@@ -258,17 +277,43 @@ export default function DiagnosticsPage() {
             <div className="flex justify-center p-8"><RefreshCw className="h-6 w-6 text-slate-400 animate-spin" /></div>
           ) : (
             filteredBranches.map(branch => (
-              <button
+              <div
                 key={branch.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => handleSelectBranch(branch)}
-                className={`w-full text-left p-3 rounded-lg mb-1 flex items-center justify-between transition-colors ${selectedBranch?.id === branch.id ? 'bg-emerald-600/20 border border-emerald-500/50' : 'hover:bg-slate-800 border border-transparent'}`}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectBranch(branch); }}
+                className={`w-full text-left p-3 rounded-lg mb-1 flex items-center justify-between transition-colors cursor-pointer ${selectedBranch?.id === branch.id ? 'bg-emerald-600/20 border border-emerald-500/50' : 'hover:bg-slate-800 border border-transparent'}`}
               >
                 <div>
                   <div className="font-semibold text-slate-200">{branch.id}</div>
                   <div className="text-xs text-slate-400">{branch.name}</div>
                 </div>
-                <ChevronRight className={`h-4 w-4 ${selectedBranch?.id === branch.id ? 'text-emerald-400' : 'text-slate-600'}`} />
-              </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handlePing(branch.id); }}
+                    disabled={pingStates[branch.id] === 'loading'}
+                    title={branch.ip || 'Ping'}
+                    className={`p-1.5 rounded transition-colors ${pingStates[branch.id] === 'up'
+                        ? 'text-emerald-400 bg-emerald-500/10'
+                        : pingStates[branch.id] === 'down'
+                          ? 'text-red-400 bg-red-500/10'
+                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'
+                      }`}
+                  >
+                    {pingStates[branch.id] === 'loading' ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : pingStates[branch.id] === 'up' ? (
+                      <Wifi className="h-3.5 w-3.5" />
+                    ) : pingStates[branch.id] === 'down' ? (
+                      <WifiOff className="h-3.5 w-3.5" />
+                    ) : (
+                      <Signal className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                  <ChevronRight className={`h-4 w-4 ${selectedBranch?.id === branch.id ? 'text-emerald-400' : 'text-slate-600'}`} />
+                </div>
+              </div>
             ))
           )}
         </div>

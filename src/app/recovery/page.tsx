@@ -92,6 +92,8 @@ function RecoveryPageContent() {
     setShowUnsynced(false);
     setShowUnprocessed(false);
     setReturnTo(null);
+    // Auto-ping when selecting a branch
+    handlePing(b.id);
   };
 
   const handleCheckStatus = async (branchOverride?: Branch, preserveExecResult = false) => {
@@ -105,6 +107,8 @@ function RecoveryPageContent() {
       setSelectedBranch(branchOverride);
       setShowUnsynced(false);
       setShowUnprocessed(false);
+      // Auto-ping when navigating to a branch from a list
+      handlePing(branchOverride.id);
     }
 
     setStatusLoading(true);
@@ -197,12 +201,18 @@ function RecoveryPageContent() {
       const data = await res.json();
       if (data.unsynced) {
         setUnsyncedBranches(data.unsynced);
+        // Auto-ping all returned outlets
+        data.unsynced.forEach((b: any) => handlePing(b.id));
       }
     } catch (err) {
       console.error(err);
     } finally {
       setUnsyncedLoading(false);
     }
+  };
+
+  const handlePingAll = (list: any[]) => {
+    list.forEach(b => handlePing(b.id));
   };
 
   const handleFetchUnprocessed = async (minutesOverride?: number) => {
@@ -242,6 +252,8 @@ function RecoveryPageContent() {
     setStatusError(null);
     setExecResult(null);
     setShowConfirm(true);
+    // Auto-ping when navigating to a branch
+    handlePing(branch.id);
   };
 
   const handleGoBack = () => {
@@ -504,6 +516,16 @@ function RecoveryPageContent() {
                   <p className="text-slate-400 text-sm">Branches not synced in the last {unsyncedHours} hour{unsyncedHours !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="flex gap-2">
+                  {unsyncedBranches.length > 0 && (
+                    <button
+                      onClick={() => handlePingAll(unsyncedBranches)}
+                      className="text-emerald-400 hover:text-emerald-300 px-3 py-2 rounded transition-colors text-sm flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20"
+                      title="Ping all outlets"
+                    >
+                      <Signal className="h-4 w-4" />
+                      Ping All
+                    </button>
+                  )}
                   <button
                     onClick={() => handleFetchUnsynced()}
                     disabled={unsyncedLoading}
@@ -638,14 +660,39 @@ function RecoveryPageContent() {
                 <h2 className="text-2xl font-bold text-white mb-1">{selectedBranch?.id} - {selectedBranch?.name}</h2>
                 <p className="text-slate-400 font-mono text-sm">IP: {selectedBranch?.ip}</p>
               </div>
-              <button
-                onClick={() => handleCheckStatus()}
-                disabled={statusLoading || execLoading}
-                className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                {statusLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                Check Status
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => selectedBranch && handlePing(selectedBranch.id)}
+                  disabled={!selectedBranch || pingStates[selectedBranch?.id ?? ''] === 'loading'}
+                  title={selectedBranch?.ip || 'Ping'}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                    pingStates[selectedBranch?.id ?? ''] === 'up'
+                      ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+                      : pingStates[selectedBranch?.id ?? ''] === 'down'
+                        ? 'bg-red-600/20 text-red-400 border border-red-500/30'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-transparent'
+                  }`}
+                >
+                  {pingStates[selectedBranch?.id ?? ''] === 'loading' ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : pingStates[selectedBranch?.id ?? ''] === 'up' ? (
+                    <Wifi className="h-4 w-4" />
+                  ) : pingStates[selectedBranch?.id ?? ''] === 'down' ? (
+                    <WifiOff className="h-4 w-4" />
+                  ) : (
+                    <Signal className="h-4 w-4" />
+                  )}
+                  {pingStates[selectedBranch?.id ?? ''] === 'up' ? 'Online' : pingStates[selectedBranch?.id ?? ''] === 'down' ? 'Offline' : 'Ping'}
+                </button>
+                <button
+                  onClick={() => handleCheckStatus()}
+                  disabled={statusLoading || execLoading}
+                  className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  {statusLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  Check Status
+                </button>
+              </div>
             </div>
 
             {/* Content Area */}
