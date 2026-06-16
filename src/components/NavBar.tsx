@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Activity, ShieldCheck, ServerCrash, HardDrive, Terminal, Building2 } from "lucide-react";
 import { useOrg } from "@/lib/OrgContext";
+
 
 const navItems = [
   {
@@ -29,6 +31,7 @@ const navItems = [
 
 export function NavBar() {
   const { org, setOrg } = useOrg();
+  const pathname = usePathname();
 
   const handleOrgChange = (newOrg: "sathosa" | "idl") => {
     setOrg(newOrg);
@@ -67,23 +70,38 @@ export function NavBar() {
           <div className="hidden md:flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 shadow-2xl shadow-black/20">
             {navItems.map((item) => {
               const Icon = item.icon;
+              const isActive = item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href);
 
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group relative overflow-hidden flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-400 transition-all duration-300 hover:text-white hover:bg-white/[0.05]"
+                  className={`group relative overflow-hidden flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 ${
+                    isActive
+                      ? "text-white bg-white/[0.08] shadow-inner"
+                      : "text-slate-400 hover:text-white hover:bg-white/[0.05]"
+                  }`}
                 >
-                  {/* hover glow */}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-transparent" />
+                  {/* active indicator glow */}
+                  {isActive && (
+                    <span className="absolute inset-x-3 bottom-0 h-px bg-gradient-to-r from-blue-500/60 via-cyan-400/60 to-blue-500/60 rounded-full" />
+                  )}
 
-                  <Icon className="relative h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+                  {/* hover glow (inactive only) */}
+                  {!isActive && (
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-transparent" />
+                  )}
+
+                  <Icon className={`relative h-4 w-4 transition-transform duration-300 group-hover:scale-110 ${isActive ? "text-blue-400" : ""}`} />
 
                   <span className="relative">{item.label}</span>
                 </Link>
               );
             })}
           </div>
+
 
           {/* Organization Switcher */}
           <div className="flex items-center gap-3">
