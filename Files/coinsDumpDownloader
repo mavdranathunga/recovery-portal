@@ -1,0 +1,57 @@
+#!/bin/bash
+# This file is managed by Puppet and any local changes will be override
+
+export COINS_HOME=/coins/
+#remove cron
+echo "@reboot  /coins/coinsDumpDownloader" | crontab -
+#coins in
+if [ ! -d $COINS_HOME/in ];
+then
+        mkdir $COINS_HOME/in
+fi
+#Check reachability
+ping -c 5 "$( cat /coins/serveraddress )"
+#dump download and process
+if [ $? -eq 0 ];then
+        if [ -f /coins/key_zync ]; then # if has key run for sftp with it
+                #read filename
+                sftp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i /coins/key_zync "zync@$( cat /coins/serveraddress )":/home/zync/lastdump /tmp/lastdump
+                #Proceed only if available
+                if [ -f /tmp/lastdump ];then
+                        cd $COINS_HOME/in
+                        rm -rf ./*
+                        #Download
+                        sftp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i /coins/key_zync "zync@$( cat /coins/serveraddress )":"/home/zync/$( cat /tmp/lastdump )" /tmp/dump.zip
+                        #Extract
+                        unzip -o /tmp/dump.zip
+                        #Grab name
+                        ls *dump | awk '{print $1}' > lastfile
+                        chown -R oracle:dba $COINS_HOME/in
+                        chmod 0777 $COINS_HOME/in
+                fi
+        else #if no key run for legacy java downloader
+                cd $COINS_HOME/CoinsFileDownloader
+                java -jar CoinsFileDownloader.jar
+                #file move
+                if [ $? -eq 0 ];then
+                        echo "Fine"
+                        cd $COINS_HOME
+                        rm -rfR in
+                        mv 'in\' in
+                        mv 'in\lastfile' in/lastfile
+                        chown -R oracle:dba in
+                        chmod 0777 in
+                else
+                        echo "Moving downloaded file error"
+                fi
+        fi
+else
+        echo "Error"
+fi
+#
+#remove old logs
+find /coins/appLog/ -not -path "/coins/appLog" -mtime +180 -exec rm -rfR {} \;
+find /coins/I-FoS/logs/ -not -path "/coins/I-FoS/logs" -not -path "/coins/I-FoS/logs/SalesLog" -mtime +180 -exec rm -rfR {} \;
+#
+#finally schedule with cron for continous operation
+echo "$(date +%M) */1 * * *  /coins/coinsDumpDownloader" | crontab -

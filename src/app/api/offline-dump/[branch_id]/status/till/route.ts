@@ -39,7 +39,8 @@ export async function POST(
           filename: null,
           date: null,
           isHealthy: false,
-          message: "No .dump files found."
+          message: "No .dump files found.",
+          authMethod: result.authMethod
         }
       });
     }
@@ -53,7 +54,8 @@ export async function POST(
           filename: null,
           date: null,
           isHealthy: false,
-          message: "Directory empty or missing."
+          message: "Directory empty or missing.",
+          authMethod: result.authMethod
         }
       });
     }
@@ -70,7 +72,8 @@ export async function POST(
           filename: null,
           date: null,
           isHealthy: false,
-          message: "Could not parse filename."
+          message: "Could not parse filename.",
+          authMethod: result.authMethod
         }
       });
     }
@@ -97,7 +100,8 @@ export async function POST(
         filename,
         date: fileDate,
         isHealthy,
-        message: isHealthy ? "Dump is up to date." : "Dump is outdated."
+        message: isHealthy ? "Dump is up to date." : "Dump is outdated.",
+        authMethod: result.authMethod
       }
     });
 

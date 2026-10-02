@@ -1,0 +1,12 @@
+#!/bin/bash
+sqlplus ibom/ibom@localhost/xe <<ORACONF
+create or replace directory COINSDUMP as '/coins/zyncdump';
+exit;
+ORACONF
+
+
+#disable oracle on startup
+systemctl enable oracle-xe --now
+chkconfig oracle-xe on
+
+sed -i '$d' /etc/profile

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Terminal, RefreshCw, Search, HardDrive, CheckCircle2, AlertCircle, ChevronLeft, Clock, FileText, Play } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Terminal, RefreshCw, Search, HardDrive, CheckCircle2, AlertCircle, ChevronLeft, Clock, FileText, Play, StopCircle, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useOrg } from "@/lib/OrgContext";
 
@@ -18,6 +18,15 @@ interface DumpStatus {
   date: string | null;
   isHealthy: boolean;
   message: string;
+  authMethod?: string | null;
+}
+
+interface ScannedResult {
+  branch: Branch;
+  isHealthy: boolean;
+  statusMsg: string;
+  date: string | null;
+  authMethod: string | null;
 }
 
 export default function OfflineDumpPage() {
@@ -47,7 +56,27 @@ export default function OfflineDumpPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanTotal, setScanTotal] = useState(0);
-  const [outdatedBranches, setOutdatedBranches] = useState<(Branch & { statusMsg: string; date: string | null })[]>([]);
+  const [outdatedBranches, setOutdatedBranches] = useState<(Branch & { statusMsg: string; date: string | null; authMethod?: string | null })[]>([]);
+  const [scannedResults, setScannedResults] = useState<Record<string, ScannedResult>>({});
+  const stopScanFlag = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      stopScanFlag.current = true;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const stopScan = () => {
+    stopScanFlag.current = true;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setIsScanning(false);
+  };
 
   useEffect(() => {
     fetch(`/api/branches?org=${org}`)
@@ -169,50 +198,95 @@ export default function OfflineDumpPage() {
 
   const startScan = async () => {
     const shopsToScan = branches.filter(b => b.category === 'Shop');
+    if (shopsToScan.length === 0 || isScanning) return;
+
+    stopScanFlag.current = false;
+    abortControllerRef.current = new AbortController();
 
     setIsScanning(true);
     setScanTotal(shopsToScan.length);
     setScanProgress(0);
     setOutdatedBranches([]);
+    setScannedResults({});
 
     let completed = 0;
     const concurrencyLimit = 5;
 
     for (let i = 0; i < shopsToScan.length; i += concurrencyLimit) {
-      // If we unmounted or stopped, we'd break here (not implemented yet)
+      if (stopScanFlag.current) break;
+
       const chunk = shopsToScan.slice(i, i + concurrencyLimit);
 
       const promises = chunk.map(async (branch) => {
+        if (stopScanFlag.current) return;
+
         try {
-          const res = await fetch(`/api/offline-dump/${branch.id}/status/server?org=${org}`, { method: 'POST' });
+          const res = await fetch(`/api/offline-dump/${branch.id}/status/server?org=${org}`, {
+            method: 'POST',
+            signal: abortControllerRef.current?.signal
+          });
           const data = await res.json();
 
-          if (data.success && !data.status.isHealthy) {
-            setOutdatedBranches(prev => [...prev, {
-              ...branch,
-              statusMsg: data.status.message || 'Missing/Outdated',
-              date: data.status.date
-            }]);
+          if (stopScanFlag.current) return;
+
+          if (data.success) {
+            const authMethod = data.status?.authMethod || null;
+            setScannedResults(prev => ({
+              ...prev,
+              [branch.id]: {
+                branch,
+                isHealthy: !!data.status.isHealthy,
+                statusMsg: data.status.message || (data.status.isHealthy ? 'Healthy' : 'Outdated'),
+                date: data.status.date || null,
+                authMethod
+              }
+            }));
+
+            if (!data.status.isHealthy) {
+              setOutdatedBranches(prev => [...prev, {
+                ...branch,
+                statusMsg: data.status.message || 'Missing/Outdated',
+                date: data.status.date,
+                authMethod
+              }]);
+            }
           } else if (data.error) {
+            setScannedResults(prev => ({
+              ...prev,
+              [branch.id]: {
+                branch,
+                isHealthy: false,
+                statusMsg: data.error,
+                date: null,
+                authMethod: null
+              }
+            }));
             setOutdatedBranches(prev => [...prev, {
               ...branch,
               statusMsg: data.error,
-              date: null
+              date: null,
+              authMethod: null
             }]);
           }
-        } catch (err) {
+        } catch (err: any) {
+          if (err.name === 'AbortError' || stopScanFlag.current) return;
           setOutdatedBranches(prev => [...prev, {
             ...branch,
             statusMsg: 'Network Error',
-            date: null
+            date: null,
+            authMethod: null
           }]);
         } finally {
-          completed++;
-          setScanProgress(completed);
+          if (!stopScanFlag.current) {
+            completed++;
+            setScanProgress(completed);
+          }
         }
       });
 
       await Promise.all(promises);
+
+      if (stopScanFlag.current) break;
 
       if (i + concurrencyLimit < shopsToScan.length) {
         await new Promise(r => setTimeout(r, 500));
@@ -220,6 +294,36 @@ export default function OfflineDumpPage() {
     }
 
     setIsScanning(false);
+  };
+
+  const exportOfflineDumpToCSV = () => {
+    const csvRows = [
+      ["Branch ID", "Branch Name", "IP Address", "Category", "Status", "Auth Method", "Dump Date", "Message"]
+    ];
+
+    Object.values(scannedResults).forEach((item) => {
+      csvRows.push([
+        item.branch.id,
+        item.branch.name,
+        item.branch.ip,
+        item.branch.category,
+        item.isHealthy ? "Healthy" : "Outdated/Missing",
+        item.authMethod || "N/A",
+        item.date || "N/A",
+        item.statusMsg
+      ]);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + csvRows.map((e) => e.map((val) => `"${val.replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `offline_dump_scan_results_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -288,26 +392,55 @@ export default function OfflineDumpPage() {
                 <h2 className="text-2xl font-bold text-white">Outdated Server Scanner</h2>
                 <p className="text-slate-400 text-sm mt-1">Scan all shops for missing or outdated dump files on their servers.</p>
               </div>
-              <button
-                onClick={startScan}
-                disabled={isScanning || loading}
-                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20 whitespace-nowrap"
-              >
-                {isScanning ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
-                {isScanning ? 'Scanning...' : 'Start Full Scan'}
-              </button>
+              <div className="flex items-center gap-3 flex-wrap">
+                {Object.keys(scannedResults).length > 0 && (
+                  <button
+                    onClick={exportOfflineDumpToCSV}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export Results (.csv)
+                  </button>
+                )}
+
+                {isScanning ? (
+                  <button
+                    onClick={stopScan}
+                    className="bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-red-900/30 whitespace-nowrap border border-red-500"
+                  >
+                    <StopCircle className="h-4 w-4" />
+                    Cancel Scan
+                  </button>
+                ) : (
+                  <button
+                    onClick={startScan}
+                    disabled={loading}
+                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20 whitespace-nowrap"
+                  >
+                    <Play className="h-4 w-4 fill-current" />
+                    {scanProgress > 0 ? 'Restart Scan' : 'Start Full Scan'}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex-1 p-6 overflow-y-auto bg-black/20 custom-scrollbar">
               {(isScanning || scanProgress > 0) && (
                 <div className="mb-8">
                   <div className="flex justify-between items-center mb-2 text-sm text-slate-300">
-                    <span>Scan Progress</span>
+                    <span className="flex items-center gap-2 font-medium">
+                      Scan Progress
+                      {!isScanning && scanProgress > 0 && scanProgress < scanTotal && (
+                        <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-sans">
+                          Cancelled
+                        </span>
+                      )}
+                    </span>
                     <span className="font-mono">{scanProgress} / {scanTotal}</span>
                   </div>
                   <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                      className={`h-full transition-all duration-300 ease-out ${!isScanning && scanProgress < scanTotal ? 'bg-amber-500' : 'bg-blue-500'}`}
                       style={{ width: `${scanTotal > 0 ? (scanProgress / scanTotal) * 100 : 0}%` }}
                     ></div>
                   </div>
@@ -329,7 +462,14 @@ export default function OfflineDumpPage() {
                         className="bg-slate-900/50 border border-slate-700/50 hover:border-blue-500/50 hover:bg-slate-800/50 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left transition-all"
                       >
                         <div>
-                          <div className="font-bold text-white text-base">{branch.id} - {branch.name}</div>
+                          <div className="font-bold text-white text-base flex items-center gap-2">
+                            {branch.id} - {branch.name}
+                            {branch.authMethod && (
+                              <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded border bg-slate-800 text-indigo-300 border-indigo-500/20">
+                                {branch.authMethod}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs opacity-60 font-mono mt-0.5">{branch.ip}</div>
                         </div>
                         <div className="text-right">
@@ -343,24 +483,30 @@ export default function OfflineDumpPage() {
                     ))}
                   </div>
                 </div>
+              ) : isScanning ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 h-full">
+                  <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mb-4" />
+                  <p>Scanning servers... Please wait.</p>
+                </div>
               ) : (scanProgress > 0 && scanProgress === scanTotal) ? (
                 <div className="flex flex-col items-center justify-center py-16 text-emerald-500">
                   <CheckCircle2 className="h-12 w-12 mb-4" />
                   <p className="text-lg font-medium">All Shops are Healthy!</p>
                   <p className="text-sm opacity-80 mt-1">No outdated dumps found.</p>
                 </div>
-              ) : !isScanning && scanProgress === 0 ? (
+              ) : (scanProgress > 0 && scanProgress < scanTotal) ? (
+                <div className="flex flex-col items-center justify-center py-16 text-amber-400">
+                  <AlertCircle className="h-12 w-12 mb-4 text-amber-400/80" />
+                  <p className="text-lg font-medium text-white">Scan Cancelled</p>
+                  <p className="text-sm text-slate-400 mt-1">Stopped at {scanProgress} of {scanTotal} shops. No outdated dumps found in checked shops.</p>
+                </div>
+              ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-500 h-full">
                   <div className="bg-slate-800/50 p-6 rounded-full mb-4">
                     <Search className="h-12 w-12 text-slate-400" />
                   </div>
                   <p className="text-lg font-medium text-slate-300 mb-2">Ready to Scan</p>
                   <p className="text-sm max-w-sm text-center">Click "Start Full Scan" to check the dump status of all shops concurrently.</p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400 h-full">
-                  <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mb-4" />
-                  <p>Scanning servers... Please wait.</p>
                 </div>
               )}
             </div>

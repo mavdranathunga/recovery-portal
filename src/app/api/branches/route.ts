@@ -20,7 +20,8 @@ export async function GET(request: Request) {
       JOIN TBL_MAP_BRANCH2CONNECTION m ON b.BRANCH_ID = m.BRANCH_ID
       WHERE b.STATUS NOT IN ('N', 'D', 'I') 
         AND m.IP_ADDRESS IS NOT NULL
-        AND UPPER(b.BRANCH_ID) != 'HO'
+        AND UPPER(b.BRANCH_ID) NOT IN ('HO', 'H001')
+        AND m.IP_ADDRESS != '192.168.16.10'
     `;
 
     const result = await connection.execute<{
@@ -34,13 +35,20 @@ export async function GET(request: Request) {
     if (result.rows) {
       result.rows.forEach((row: any) => {
         const id = row.BRANCH_ID.trim();
+        const ip = row.IP_ADDRESS.trim();
+
+        // Exclude Head Office IDs and IP
+        if (id.toUpperCase() === 'HO' || id.toUpperCase() === 'H001' || ip === '192.168.16.10') {
+          return;
+        }
+
         // Categorize: Contains 'S' -> Shop, else -> Warehouse
         const category = id.toUpperCase().includes('S') ? 'Shop' : 'Warehouse';
 
         branches.push({
           id,
           name: row.BRANCH_NAME.trim(),
-          ip: row.IP_ADDRESS.trim(),
+          ip,
           category
         });
       });

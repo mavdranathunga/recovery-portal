@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { OrgProvider } from "@/lib/OrgContext";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Recovery Portal",
@@ -19,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} antialiased flex flex-col min-h-screen bg-slate-950 text-slate-200`}>
+      <body className="antialiased flex flex-col min-h-screen bg-slate-950 text-slate-200">
         <OrgProvider>
           <NavBar />
 
