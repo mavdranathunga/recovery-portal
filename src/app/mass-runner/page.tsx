@@ -922,8 +922,9 @@ export default function MassRunnerPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 backdrop-blur-md p-6 rounded-2xl border border-slate-800">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push("/diagnostics")}
+            onClick={() => router.push("/")}
             className="text-slate-400 hover:text-white transition-colors flex items-center justify-center bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60"
+            title="Back to Dashboard"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>

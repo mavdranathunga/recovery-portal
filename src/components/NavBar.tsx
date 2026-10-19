@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ShieldCheck, ServerCrash, HardDrive, Terminal, Building2 } from "lucide-react";
+import { Activity, ShieldCheck, ServerCrash, HardDrive, Terminal, Building2, Play } from "lucide-react";
 import { useOrg } from "@/lib/OrgContext";
 
 
@@ -21,6 +21,11 @@ const navItems = [
     href: "/diagnostics",
     label: "Diagnostics",
     icon: Terminal,
+  },
+  {
+    href: "/mass-runner",
+    label: "Mass Runner",
+    icon: Play,
   },
   {
     href: "/offline-dump",
