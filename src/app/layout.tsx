@@ -3,10 +3,24 @@ import "./globals.css";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { OrgProvider } from "@/lib/OrgContext";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 
 export const metadata: Metadata = {
   title: "Recovery Portal",
-  description: "Recovery Portal",
+  description:
+    "Centralized command node for retail branches and warehouses. Monitor live data sync, diagnose server outages, and automate recoveries.",
+  applicationName: "Recovery Portal",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Recovery Portal",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({
@@ -16,7 +30,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased flex flex-col min-h-screen bg-slate-950 text-slate-200">
+      <head>
+        <meta name="theme-color" content="#020617" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+      </head>
+      <body className="antialiased flex flex-col min-h-screen bg-slate-950 text-slate-200 overflow-x-hidden">
         <OrgProvider>
           <NavBar />
 
@@ -26,9 +44,8 @@ export default function RootLayout({
 
           <Footer />
         </OrgProvider>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );
 }
-
-

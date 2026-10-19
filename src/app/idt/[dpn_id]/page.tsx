@@ -155,58 +155,59 @@ export default function IdtTrackerPage({ params }: { params: Promise<{ dpn_id: s
     <div className="animate-in fade-in duration-500">
 
       {/* Header Container */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            IDT Tracker
-            <span className="text-blue-400 px-3 py-1 bg-blue-500/10 rounded-md text-sm font-mono border border-blue-500/20">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+              IDT Tracker
+            </h1>
+            <span className="text-blue-400 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-blue-500/10 rounded-md text-xs sm:text-sm font-mono font-semibold border border-blue-500/20">
               {dpn_id}
             </span>
-          </h1>
-          <p className="text-slate-400 mt-2">
+          </div>
+          <p className="text-slate-400 text-xs sm:text-sm mt-1.5">
             Real-time synchronization status across network databases.
           </p>
         </div>
         <button
           onClick={fetchIdtData}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors text-sm border border-slate-700"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors text-sm border border-slate-700 self-start sm:self-auto"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           Refresh Status
         </button>
       </div>
 
       {/* Progress summary banner */}
-      <div className={cn("mb-12 p-4 rounded-xl border flex items-center gap-4", bannerConfig.colorClass)}>
-        {bannerConfig.icon}
+      <div className={cn("mb-8 sm:mb-12 p-4 rounded-xl border flex items-start sm:items-center gap-3.5", bannerConfig.colorClass)}>
+        <div className="mt-0.5 sm:mt-0">{bannerConfig.icon}</div>
         <div className="flex-1">
-          <h3 className="font-semibold text-lg">{bannerConfig.title}</h3>
-          <p className="text-sm opacity-80">{bannerConfig.desc}</p>
+          <h3 className="font-semibold text-base sm:text-lg leading-tight">{bannerConfig.title}</h3>
+          <p className="text-xs sm:text-sm opacity-80 mt-1">{bannerConfig.desc}</p>
         </div>
       </div>
 
       {/* Global IDT Properties */}
       {bestRecord && (
-        <div className="mb-12 glass-card p-6 border border-slate-700/50">
-          <h3 className="text-lg font-semibold text-slate-200 mb-4 pb-3 border-b border-slate-800">IDT Details</h3>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="mb-8 sm:mb-12 glass-card p-4 sm:p-6 border border-slate-700/50">
+          <h3 className="text-base sm:text-lg font-semibold text-slate-200 mb-3 pb-2.5 border-b border-slate-800">IDT Details</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
             <div>
-              <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Created</p>
-              <p className="text-slate-200 font-medium">{formatDate(bestRecord.rec_date)}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Created</p>
+              <p className="text-slate-200 text-xs sm:text-sm font-medium">{formatDate(bestRecord.rec_date)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Updated</p>
-              <p className="text-slate-200 font-medium">{formatDate(bestRecord.lupd_date)}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Updated</p>
+              <p className="text-slate-200 text-xs sm:text-sm font-medium">{formatDate(bestRecord.lupd_date)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Committed</p>
-              <p className="text-slate-200 font-medium">{formatDate(bestRecord.dpn_commit_date)}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Committed</p>
+              <p className="text-slate-200 text-xs sm:text-sm font-medium">{formatDate(bestRecord.dpn_commit_date)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1 text-blue-400">Sync</p>
-              <p className="text-blue-100 font-semibold">{formatDate(bestRecord.sync_date)}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1 text-blue-400">Sync</p>
+              <p className="text-blue-200 text-xs sm:text-sm font-semibold">{formatDate(bestRecord.sync_date)}</p>
             </div>
-
           </div>
         </div>
       )}

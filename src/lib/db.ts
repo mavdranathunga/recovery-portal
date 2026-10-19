@@ -14,19 +14,31 @@ export type OrgId = "sathosa" | "idl";
 // ─── HO Connections ──────────────────────────────────────────────────────────
 
 export async function getHoConnection(): Promise<oracledb.Connection> {
-  return await oracledb.getConnection({
+  const conn = await oracledb.getConnection({
     user: process.env.HO_DB_USER,
     password: process.env.HO_DB_PASSWORD,
     connectString: process.env.HO_DB_CONNECTSTRING,
   });
+  try {
+    await conn.execute("ALTER SESSION SET CURRENT_SCHEMA = IBOM");
+  } catch (err) {
+    console.warn("Could not set current_schema to IBOM on HO connection:", err);
+  }
+  return conn;
 }
 
 export async function getIdlHoConnection(): Promise<oracledb.Connection> {
-  return await oracledb.getConnection({
+  const conn = await oracledb.getConnection({
     user: process.env.HO_DB_USER,          // Same user
     password: process.env.HO_DB_PASSWORD,  // Same password
     connectString: process.env.IDL_HO_DB_CONNECTSTRING,
   });
+  try {
+    await conn.execute("ALTER SESSION SET CURRENT_SCHEMA = IBOM");
+  } catch (err) {
+    console.warn("Could not set current_schema to IBOM on IDL HO connection:", err);
+  }
+  return conn;
 }
 
 /** Returns the correct HO connection for the given org. */

@@ -232,24 +232,16 @@ export default function DiagnosticsPage() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 h-[85vh] animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-6 min-h-[85vh] md:h-[85vh] animate-in fade-in duration-500">
 
-      {/* Sidebar - Branch List */}
-      <div className="w-full md:w-1/4 flex flex-col glass-card overflow-hidden">
+      {/* Sidebar - Branch List (hidden on mobile when a branch is selected) */}
+      <div className={`w-full md:w-1/4 flex-col glass-card overflow-hidden h-[420px] md:h-auto ${selectedBranch ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <Activity className="h-5 w-5 text-emerald-400" />
             Diagnostics
           </h2>
           <div className="flex gap-2">
-            {/* <button
-              onClick={() => router.push('/diagnostics/mass-runner')}
-              className="text-indigo-450 hover:text-indigo-300 transition-colors flex items-center gap-1 text-xs bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1.5 rounded border border-indigo-500/20"
-              title="Mass Command Runner"
-            >
-              <Terminal className="h-3.5 w-3.5 text-indigo-400" />
-              <span className="hidden xl:inline">Mass Run</span>
-            </button> */}
             <button
               onClick={() => router.push('/')}
               className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-sm bg-slate-800/50 hover:bg-slate-700/50 px-2 py-1.5 rounded"
@@ -320,7 +312,7 @@ export default function DiagnosticsPage() {
       </div>
 
       {/* Main Panel - Diagnostics */}
-      <div className="w-full md:w-3/4 glass-card flex flex-col p-6 overflow-y-auto custom-scrollbar">
+      <div className={`w-full md:w-3/4 glass-card flex-col p-4 sm:p-6 overflow-y-auto custom-scrollbar ${!selectedBranch ? 'hidden md:flex' : 'flex'}`}>
         {!selectedBranch ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
             <Server className="h-16 w-16 mb-4 opacity-20" />
@@ -329,8 +321,15 @@ export default function DiagnosticsPage() {
         ) : (
           <div className="animate-in fade-in duration-300 flex flex-col h-full">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-1">{selectedBranch.id} - {selectedBranch.name}</h2>
-              <p className="text-slate-400 font-mono text-sm">IP: {selectedBranch.ip}</p>
+              <button
+                onClick={() => setSelectedBranch(null)}
+                className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs mb-2 transition-colors group md:hidden"
+              >
+                <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                Back to Outlets
+              </button>
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">{selectedBranch.id} - {selectedBranch.name}</h2>
+              <p className="text-slate-400 font-mono text-xs sm:text-sm">IP: {selectedBranch.ip}</p>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">

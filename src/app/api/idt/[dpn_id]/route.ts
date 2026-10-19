@@ -28,6 +28,22 @@ export async function GET(
       lupd_date, 
       zync_date, 
       dpn_commit_date 
+    FROM IBOM.T2024_DPN 
+    WHERE dpn_id = :1
+  `;
+
+  // For remote outlets, they connect directly as IBOM user so T2024_DPN or IBOM.T2024_DPN works
+  const outletQuery = `
+    SELECT 
+      dpn_id, 
+      dpn_src_branchid, 
+      dpn_dest_branchid, 
+      dpn_status, 
+      effective_date, 
+      rec_date, 
+      lupd_date, 
+      zync_date, 
+      dpn_commit_date 
     FROM T2024_DPN 
     WHERE dpn_id = :1
   `;
@@ -86,7 +102,7 @@ export async function GET(
         let srcConn: Connection | null = null;
         try {
           srcConn = await getOutletConnection(srcIp);
-          const srcResult = await srcConn.execute<any>(query, [dpn_id], { outFormat: 4002 });
+          const srcResult = await srcConn.execute<any>(outletQuery, [dpn_id], { outFormat: 4002 });
           if (srcResult.rows && srcResult.rows.length > 0) {
             sourceRecord = srcResult.rows[0];
             // If HO record was missing, we can now populate destBranch from the source record!
@@ -111,7 +127,7 @@ export async function GET(
         let destConn: Connection | null = null;
         try {
           destConn = await getOutletConnection(destIp);
-          const destResult = await destConn.execute<any>(query, [dpn_id], { outFormat: 4002 });
+          const destResult = await destConn.execute<any>(outletQuery, [dpn_id], { outFormat: 4002 });
           if (destResult.rows && destResult.rows.length > 0) {
             destRecord = destResult.rows[0];
           }

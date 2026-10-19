@@ -289,10 +289,10 @@ function RecoveryPageContent() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 h-[85vh] animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-6 min-h-[85vh] md:h-[85vh] animate-in fade-in duration-500">
 
-      {/* Sidebar - Branch List */}
-      <div className="w-full md:w-1/4 flex flex-col glass-card overflow-hidden">
+      {/* Sidebar - Branch List (hidden on mobile if a branch or list view is active, so user can focus on main panel) */}
+      <div className={`w-full md:w-1/4 flex-col glass-card overflow-hidden h-[420px] md:h-auto ${selectedBranch || showUnsynced || showUnprocessed ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <ServerCrash className="h-5 w-5 text-rose-400" />
@@ -361,7 +361,7 @@ function RecoveryPageContent() {
       </div>
 
       {/* Main Panel - Actions */}
-      <div className="w-full md:w-3/4 glass-card flex flex-col">
+      <div className={`w-full md:w-3/4 glass-card flex-col ${!selectedBranch && !showUnsynced && !showUnprocessed ? 'hidden md:flex' : 'flex'}`}>
         {!selectedBranch && !showUnsynced && !showUnprocessed ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
             <Terminal className="h-16 w-16 mb-4 opacity-20" />
@@ -387,21 +387,21 @@ function RecoveryPageContent() {
           </div>
         ) : showUnprocessed ? (
           <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-white/10 bg-slate-900/50">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-3">
-                    <FileWarning className="h-6 w-6 text-amber-500" />
-                    Unprocessed Sync Files
+            <div className="p-4 sm:p-6 border-b border-white/10 bg-slate-900/50">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-2xl font-bold text-white mb-1 flex flex-wrap items-center gap-2">
+                    <FileWarning className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 shrink-0" />
+                    <span>Unprocessed Sync Files</span>
                     {unprocessedFiles.length > 0 && (
                       <span className="bg-amber-500/20 text-amber-300 text-sm font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">
                         {unprocessedFiles.length}
                       </span>
                     )}
                   </h2>
-                  <p className="text-slate-400 text-sm">Files stuck in queue (grouped by outlet)</p>
+                  <p className="text-slate-400 text-xs sm:text-sm">Files stuck in queue (grouped by outlet)</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => handleFetchUnprocessed()}
                     disabled={unprocessedLoading}
@@ -415,7 +415,7 @@ function RecoveryPageContent() {
                     className="text-slate-400 hover:text-white px-3 py-2 rounded transition-colors text-sm flex items-center gap-2 bg-slate-800/50 hover:bg-slate-700/50"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Back
+                    <span>Back</span>
                   </button>
                 </div>
               </div>
@@ -501,45 +501,45 @@ function RecoveryPageContent() {
           </div>
         ) : showUnsynced ? (
           <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-white/10 bg-slate-900/50">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-3">
-                    <AlertCircle className="h-6 w-6 text-amber-500" />
-                    Unsynced Outlets
+            <div className="p-4 sm:p-6 border-b border-white/10 bg-slate-900/50">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-2xl font-bold text-white mb-1 flex flex-wrap items-center gap-2">
+                    <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 shrink-0" />
+                    <span>Unsynced Outlets</span>
                     {unsyncedBranches.length > 0 && (
                       <span className="bg-amber-500/20 text-amber-300 text-sm font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">
                         {unsyncedBranches.length}
                       </span>
                     )}
                   </h2>
-                  <p className="text-slate-400 text-sm">Branches not synced in the last {unsyncedHours} hour{unsyncedHours !== 1 ? 's' : ''}</p>
+                  <p className="text-slate-400 text-xs sm:text-sm">Branches not synced in the last {unsyncedHours} hour{unsyncedHours !== 1 ? 's' : ''}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
                   {unsyncedBranches.length > 0 && (
                     <button
                       onClick={() => handlePingAll(unsyncedBranches)}
-                      className="text-emerald-400 hover:text-emerald-300 px-3 py-2 rounded transition-colors text-sm flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20"
+                      className="text-emerald-400 hover:text-emerald-300 px-2.5 py-2 rounded transition-colors text-sm flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20"
                       title="Ping all outlets"
                     >
                       <Signal className="h-4 w-4" />
-                      Ping All
+                      <span className="hidden xs:inline">Ping All</span>
                     </button>
                   )}
                   <button
                     onClick={() => handleFetchUnsynced()}
                     disabled={unsyncedLoading}
-                    className="text-slate-400 hover:text-white px-3 py-2 rounded transition-colors text-sm flex items-center gap-2 bg-slate-800/50 hover:bg-slate-700/50"
+                    className="text-slate-400 hover:text-white px-2.5 py-2 rounded transition-colors text-sm flex items-center gap-2 bg-slate-800/50 hover:bg-slate-700/50"
                     title="Refresh"
                   >
                     <RefreshCw className={`h-4 w-4 ${unsyncedLoading ? 'animate-spin' : ''}`} />
                   </button>
                   <button
                     onClick={() => setShowUnsynced(false)}
-                    className="text-slate-400 hover:text-white px-3 py-2 rounded transition-colors text-sm flex items-center gap-2 bg-slate-800/50 hover:bg-slate-700/50"
+                    className="text-slate-400 hover:text-white px-2.5 py-2 rounded transition-colors text-sm flex items-center gap-1.5 bg-slate-800/50 hover:bg-slate-700/50"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Back
+                    <span>Back</span>
                   </button>
                 </div>
               </div>
@@ -598,11 +598,11 @@ function RecoveryPageContent() {
                           Last Sync: <span className="text-amber-400">{branch.lastSyncTime ? new Date(branch.lastSyncTime).toLocaleString() : "Never"}</span>
                         </div>
                       </div>
-                      <div className="flex gap-2 shrink-0">
+                      <div className="flex gap-1.5 sm:gap-2 shrink-0 flex-wrap">
                         <button
                           onClick={(e) => { e.preventDefault(); handlePing(branch.id); }}
                           disabled={pingStates[branch.id] === 'loading'}
-                          className={`px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 ${pingStates[branch.id] === 'up'
+                          className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${pingStates[branch.id] === 'up'
                             ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
                             : pingStates[branch.id] === 'down'
                               ? 'bg-red-600/20 text-red-400 border border-red-500/30'
@@ -611,30 +611,30 @@ function RecoveryPageContent() {
                           title={branch.ip || 'No IP'}
                         >
                           {pingStates[branch.id] === 'loading' ? (
-                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                           ) : pingStates[branch.id] === 'up' ? (
-                            <Wifi className="h-4 w-4" />
+                            <Wifi className="h-3.5 w-3.5" />
                           ) : pingStates[branch.id] === 'down' ? (
-                            <WifiOff className="h-4 w-4" />
+                            <WifiOff className="h-3.5 w-3.5" />
                           ) : (
-                            <Signal className="h-4 w-4" />
+                            <Signal className="h-3.5 w-3.5" />
                           )}
-                          {pingStates[branch.id] === 'up' ? 'Online' : pingStates[branch.id] === 'down' ? 'Offline' : 'Ping'}
+                          <span className="hidden sm:inline">{pingStates[branch.id] === 'up' ? 'Online' : pingStates[branch.id] === 'down' ? 'Offline' : 'Ping'}</span>
                         </button>
                         <button
                           onClick={(e) => { e.preventDefault(); handleCheckStatus({ id: branch.id, name: branch.name, ip: branch.ip || "" }); }}
-                          className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
+                          className="bg-slate-800 hover:bg-slate-700 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2"
                         >
-                          <Search className="h-4 w-4" />
-                          Check Sync
+                          <Search className="h-3.5 w-3.5" />
+                          <span>Check</span>
                         </button>
                         <button
                           onClick={(e) => { e.preventDefault(); handlePromptRecovery({ id: branch.id, name: branch.name, ip: branch.ip || "" }); }}
                           disabled={execLoading}
-                          className={`bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 ${execLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${execLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          {execLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ServerCrash className="h-4 w-4" />}
-                          Recovery Script
+                          {execLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <ServerCrash className="h-3.5 w-3.5" />}
+                          <span>Recover</span>
                         </button>
                       </div>
                     </a>
@@ -646,26 +646,34 @@ function RecoveryPageContent() {
         ) : (
           <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="p-6 border-b border-white/10 flex justify-between items-start">
+            <div className="p-4 sm:p-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
+                {/* On mobile, allow returning to the branch list if no other list view was active */}
+                <button
+                  onClick={returnTo ? handleGoBack : () => setSelectedBranch(null)}
+                  className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs mb-2 transition-colors group md:hidden"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                  Back to {returnTo === 'unsynced' ? 'Unsynced Outlets' : returnTo === 'unprocessed' ? 'Unprocessed Files' : 'All Outlets'}
+                </button>
                 {returnTo && (
                   <button
                     onClick={handleGoBack}
-                    className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs mb-3 transition-colors group"
+                    className="hidden md:flex items-center gap-1.5 text-slate-400 hover:text-white text-xs mb-3 transition-colors group"
                   >
                     <ChevronLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     Back to {returnTo === 'unsynced' ? 'Unsynced Outlets' : 'Unprocessed Files'}
                   </button>
                 )}
-                <h2 className="text-2xl font-bold text-white mb-1">{selectedBranch?.id} - {selectedBranch?.name}</h2>
-                <p className="text-slate-400 font-mono text-sm">IP: {selectedBranch?.ip}</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">{selectedBranch?.id} - {selectedBranch?.name}</h2>
+                <p className="text-slate-400 font-mono text-xs sm:text-sm">IP: {selectedBranch?.ip}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => selectedBranch && handlePing(selectedBranch.id)}
                   disabled={!selectedBranch || pingStates[selectedBranch?.id ?? ''] === 'loading'}
                   title={selectedBranch?.ip || 'Ping'}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                  className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-2 ${
                     pingStates[selectedBranch?.id ?? ''] === 'up'
                       ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
                       : pingStates[selectedBranch?.id ?? ''] === 'down'
@@ -687,7 +695,7 @@ function RecoveryPageContent() {
                 <button
                   onClick={() => handleCheckStatus()}
                   disabled={statusLoading || execLoading}
-                  className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                  className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-2"
                 >
                   {statusLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   Check Status
@@ -721,18 +729,18 @@ function RecoveryPageContent() {
                     <button
                       onClick={() => setShowConfirm(true)}
                       disabled={execLoading}
-                      className={`bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 px-6 py-2.5 rounded-md font-medium transition-colors flex items-center gap-2 ${execLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`w-full sm:w-auto justify-center bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 px-6 py-2.5 rounded-md font-medium transition-colors flex items-center gap-2 ${execLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {execLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ServerCrash className="h-4 w-4" />}
                       {execLoading ? 'Recovery Running...' : 'Run Recovery Script'}
                     </button>
                   ) : (
-                    <div className="flex items-center gap-4 bg-rose-500/10 border border-rose-500/30 p-4 rounded-lg w-full justify-between animate-in zoom-in-95 duration-200">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-rose-500/10 border border-rose-500/30 p-4 rounded-lg w-full justify-between animate-in zoom-in-95 duration-200">
                       <div className="text-sm text-rose-300">
                         <strong className="block text-rose-400 mb-1">Confirm Execution?</strong>
                         This will kill java, restart tomcat, and clear logs.
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 w-full sm:w-auto justify-end">
                         <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-slate-300 hover:text-white text-sm">Cancel</button>
                         <button
                           onClick={handleExecute}

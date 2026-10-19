@@ -59,7 +59,7 @@ export default function Home() {
 
 
   return (
-    <div className="relative min-h-[85vh] flex flex-col items-center py-16 px-4">
+    <div className="relative min-h-[85vh] flex flex-col items-center py-16 overflow-x-hidden">
       {/* Background glow effects */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none -z-10" />
       <div className="absolute top-40 left-1/4 w-[400px] h-[400px] bg-purple-500/10 blur-[120px] rounded-full pointer-events-none -z-10" />
