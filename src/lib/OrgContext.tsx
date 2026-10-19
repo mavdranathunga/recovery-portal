@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 
 export type OrgId = "sathosa" | "idl";
 
@@ -22,13 +22,15 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const setOrg = (newOrg: OrgId) => {
+  const setOrg = useCallback((newOrg: OrgId) => {
     setOrgState(newOrg);
     localStorage.setItem("selected_org", newOrg);
-  };
+  }, []);
+
+  const value = useMemo(() => ({ org, setOrg }), [org, setOrg]);
 
   return (
-    <OrgContext.Provider value={{ org, setOrg }}>
+    <OrgContext.Provider value={value}>
       {children}
     </OrgContext.Provider>
   );
