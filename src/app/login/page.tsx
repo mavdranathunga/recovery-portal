@@ -55,33 +55,36 @@ export default function LoginPage() {
         
         {/* Card Header with Icon */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-slate-900 to-slate-800 shadow-2xl shadow-blue-500/10 mb-4 relative group">
-            <div className="absolute inset-0 rounded-2xl bg-blue-500/20 blur-xl group-hover:bg-blue-500/30 transition-all duration-300" />
-            <ShieldCheck className="h-8 w-8 text-blue-400 relative z-10" />
+          <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl border border-blue-500/30 bg-gradient-to-b from-slate-900 to-slate-950 shadow-2xl shadow-blue-500/10 mb-4 relative group">
+            <div className="absolute inset-0 rounded-2xl bg-blue-500/20 blur-xl group-hover:bg-blue-500/30 transition-all duration-500" />
+            <ShieldCheck className="h-7 w-7 text-blue-400 relative z-10" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Recovery Portal</h1>
-          <p className="text-slate-400 text-sm mt-1.5">Sign in to manage and monitor system recovery</p>
+          <p className="text-slate-400 text-xs mt-1.5 flex items-center justify-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Centralized Infrastructure Command
+          </p>
         </div>
 
         {/* Login Box */}
-        <div className="glass-card p-8 shadow-2xl border border-white/10 backdrop-blur-xl relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
+        <div className="glass-card p-8 rounded-2xl border border-white/[0.08] relative overflow-hidden backdrop-blur-2xl">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
 
           {error && (
-            <div className="mb-6 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm flex items-center gap-2.5 animate-in slide-in-from-top-2">
+            <div className="mb-6 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-medium flex items-center gap-2.5 animate-in slide-in-from-top-2">
               <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username Input */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                Username
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+                Operator Username
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                   <User className="h-4 w-4" />
                 </div>
                 <input
@@ -91,19 +94,19 @@ export default function LoginPage() {
                   autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                  placeholder="Enter username"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950/70 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
                 />
               </div>
             </div>
 
             {/* Password Input */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                Password
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-slate-400 mb-1.5">
+                Authentication Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                   <Lock className="h-4 w-4" />
                 </div>
                 <input
@@ -113,12 +116,12 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-11 py-3 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                  className="w-full pl-10 pr-11 py-2.5 bg-slate-950/70 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -130,12 +133,12 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl transition-all duration-300 flex justify-center items-center gap-2 group shadow-lg shadow-blue-600/25 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full mt-3 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-2.5 rounded-xl transition-all duration-300 flex justify-center items-center gap-2 group shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 disabled:opacity-60 disabled:cursor-not-allowed border border-blue-400/20 text-sm"
             >
               {loading ? (
                 <>
                   <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Verifying...</span>
+                  <span>Authenticating...</span>
                 </>
               ) : (
                 <>
@@ -147,10 +150,12 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Footer info */}
-        <p className="text-center text-xs text-slate-500 mt-6">
-          Authorized personnel only. All access is logged and audited.
-        </p>
+        {/* Security badge footer */}
+        <div className="text-center mt-6">
+          <p className="text-[11px] text-slate-500 tracking-wide">
+            Protected by cryptographic session validation & rate limiting
+          </p>
+        </div>
 
       </div>
     </div>
