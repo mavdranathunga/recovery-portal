@@ -1,5 +1,5 @@
 export const AUTH_COOKIE_NAME = "portal_session";
-export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 3; // 3 hours
 
 interface SessionPayload {
   username: string;

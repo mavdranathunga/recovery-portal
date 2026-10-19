@@ -8,11 +8,6 @@ import { useOrg } from "@/lib/OrgContext";
 
 const navItems = [
   {
-    href: "/",
-    label: "Dashboard",
-    icon: Activity,
-  },
-  {
     href: "/recovery",
     label: "Recovery",
     icon: ServerCrash,
@@ -26,11 +21,6 @@ const navItems = [
     href: "/mass-runner",
     label: "Mass Runner",
     icon: Play,
-  },
-  {
-    href: "/offline-dump",
-    label: "Offline Dump",
-    icon: HardDrive,
   },
 ];
 

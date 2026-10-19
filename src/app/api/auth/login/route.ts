@@ -1,10 +1,33 @@
 import { NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME, SESSION_MAX_AGE_SECONDS, createSessionToken } from "@/lib/auth";
+import { checkRateLimit, resetRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
+    // Determine client IP from headers
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const realIp = request.headers.get("x-real-ip");
+    const clientIp = forwardedFor ? forwardedFor.split(",")[0].trim() : (realIp || "127.0.0.1");
+
+    // Rate limit: 5 attempts per 60 seconds per IP
+    const rateLimit = checkRateLimit(`login_${clientIp}`, 5, 60 * 1000);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        {
+          error: `Too many login attempts. Please wait ${rateLimit.retryAfterSeconds} seconds before trying again.`,
+          retryAfter: rateLimit.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const { username, password } = body;
 
@@ -20,10 +43,16 @@ export async function POST(request: Request) {
 
     if (username.trim() !== expectedUser || password !== expectedPass) {
       return NextResponse.json(
-        { error: "Invalid username or password" },
+        { 
+          error: "Invalid username or password",
+          remainingAttempts: rateLimit.remaining,
+        },
         { status: 401 }
       );
     }
+
+    // Login successful: reset rate limit counter for this IP
+    resetRateLimit(`login_${clientIp}`);
 
     // Generate signed token
     const token = await createSessionToken(username.trim());
