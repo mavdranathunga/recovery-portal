@@ -1,16 +1,27 @@
 import { Client } from 'ssh2';
 import * as fs from 'fs';
 
+function getSshKeyPaths() {
+  const defaultKeyPath = fs.existsSync('/app/ssh/deshanr') ? '/app/ssh/deshanr' : (fs.existsSync('./ssh/deshanr') ? './ssh/deshanr' : '');
+  const defaultTillKeyPath = fs.existsSync('/app/ssh/root-rsa-till') ? '/app/ssh/root-rsa-till' : (fs.existsSync('./ssh/root-rsa-till') ? './ssh/root-rsa-till' : '');
+  
+  const envKeyPath = process.env.SSH_KEY_PATH;
+  const keyPath = (envKeyPath && fs.existsSync(envKeyPath)) ? envKeyPath : defaultKeyPath;
+
+  const envTillPath = process.env.SSH_KEY_PATH_TILL_OLD;
+  const tillKeyPath = (envTillPath && fs.existsSync(envTillPath)) ? envTillPath : defaultTillKeyPath;
+
+  return { keyPath, tillKeyPath };
+}
+
 export async function executeSshCommand(
   host: string,
   command: string,
   timeoutMs: number = 15000
 ): Promise<{ stdout: string; stderr: string; code: number | null; authMethod: string }> {
   const keyUser = process.env.SSH_USER_KEY || 'deshanr';
-  const keyPath = process.env.SSH_KEY_PATH || '';
-
   const tillUser = 'root';
-  const tillKeyPath = process.env.SSH_KEY_PATH_TILL_OLD || '';
+  const { keyPath, tillKeyPath } = getSshKeyPaths();
 
   const pwdUser = process.env.SSH_USER_PWD || 'root';
   const pwd = process.env.SSH_PASSWORD || '';
@@ -239,11 +250,8 @@ export async function scpUploadFile(
   remotePath: string
 ): Promise<{ authMethod: string }> {
   const keyUser = process.env.SSH_USER_KEY || 'deshanr';
-  const keyPath = process.env.SSH_KEY_PATH || '';
-
   const tillUser = 'root';
-  const tillKeyPath = process.env.SSH_KEY_PATH_TILL_OLD || '';
-
+  const { keyPath, tillKeyPath } = getSshKeyPaths();
   const pwdUser = process.env.SSH_USER_PWD || 'root';
   const pwd = process.env.SSH_PASSWORD || '';
   const port = parseInt(process.env.SSH_PORT || '22', 10);

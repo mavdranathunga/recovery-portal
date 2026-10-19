@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     if (username.trim() !== expectedUser || password !== expectedPass) {
       return NextResponse.json(
-        { 
+        {
           error: "Invalid username or password",
           remainingAttempts: rateLimit.remaining,
         },
