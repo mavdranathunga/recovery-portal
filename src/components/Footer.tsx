@@ -1,6 +1,15 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { Activity } from "lucide-react";
 
 export function Footer() {
+  const pathname = usePathname();
+
+  // Hide the footer on the login page
+  if (pathname === "/login") {
+    return null;
+  }
   return (
     <footer className="border-t border-slate-800 bg-slate-950/90 backdrop-blur">
       <div className="max-w-7xl mx-auto px-6 py-12">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ShieldCheck, ServerCrash, HardDrive, Terminal, Building2, Play } from "lucide-react";
+import { Activity, ShieldCheck, ServerCrash, HardDrive, Terminal, Building2, Play, LogOut } from "lucide-react";
 import { useOrg } from "@/lib/OrgContext";
 
 
@@ -38,9 +38,22 @@ export function NavBar() {
   const { org, setOrg } = useOrg();
   const pathname = usePathname();
 
+  // Hide the navbar on the login page for a clean entrance
+  if (pathname === "/login") {
+    return null;
+  }
+
   const handleOrgChange = (newOrg: "sathosa" | "idl") => {
     setOrg(newOrg);
     window.location.href = "/";
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      window.location.href = "/login";
+    }
   };
 
   return (
@@ -108,7 +121,7 @@ export function NavBar() {
           </div>
 
 
-          {/* Organization Switcher */}
+          {/* Organization Switcher & Logout */}
           <div className="flex items-center gap-3">
             <div className="relative flex items-center rounded-xl border border-white/10 bg-slate-900/60 p-1 font-medium text-sm">
               <button
@@ -132,6 +145,15 @@ export function NavBar() {
                 IDL
               </button>
             </div>
+
+            <button
+              onClick={handleLogout}
+              className="group flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-slate-900/60 hover:bg-rose-500/10 hover:border-rose-500/30 text-slate-400 hover:text-rose-400 font-medium text-sm transition-all duration-300"
+              title="Sign Out"
+            >
+              <LogOut className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
           </div>
 
         </div>
