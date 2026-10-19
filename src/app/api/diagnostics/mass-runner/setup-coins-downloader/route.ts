@@ -178,33 +178,15 @@ export async function POST(request: Request) {
     // Clean output: keep only summary on success, or concise error on failure
     let cleanOutput = "";
     if (isSuccess) {
-      const successIdx = execResult.stdout.indexOf("SETUP COMPLETED SUCCESSFULLY");
-      if (successIdx !== -1) {
-        const summaryPortion = execResult.stdout.substring(successIdx);
-        const cleaned = summaryPortion
-          .replace(/=+[\r\n]*/g, "")
-          .replace(/SETUP COMPLETED SUCCESSFULLY[\r\n]*/i, "")
-          .trim();
-        cleanOutput = `✓ SETUP COMPLETED SUCCESSFULLY\n\n${cleaned}`;
-      } else {
-        cleanOutput = "✓ SETUP COMPLETED SUCCESSFULLY";
-      }
-
-      // Ensure downloaded dump filename is displayed
-      const dumpMatch = execResult.stdout.match(/([0-9]{4}-[0-9]{2}-[0-9]{2}[0-9_\-\.]*\.dump)/i);
-      if (dumpMatch && !cleanOutput.toLowerCase().includes("downloaded dump")) {
-        cleanOutput = cleanOutput.replace(/(Server\s*:\s*[^\r\n]+)/i, `$1\nDownloaded dump : ${dumpMatch[1]}`);
-      }
+      const idx = execResult.stdout.indexOf("SETUP COMPLETED SUCCESSFULLY");
+      cleanOutput = idx !== -1
+        ? execResult.stdout.substring(idx).replace(/=+[\r\n]*/g, "").trim()
+        : "SETUP COMPLETED SUCCESSFULLY";
     } else {
-      const errIdx = execResult.stdout.indexOf("ERROR:");
-      if (errIdx !== -1) {
-        cleanOutput = execResult.stdout
-          .substring(errIdx)
-          .replace(/=+[\r\n]*/g, "")
-          .trim();
-      } else {
-        cleanOutput = execResult.stderr.trim() || execResult.stdout.trim() || "Setup failed.";
-      }
+      const idx = execResult.stdout.indexOf("ERROR:");
+      cleanOutput = idx !== -1
+        ? execResult.stdout.substring(idx).replace(/=+[\r\n]*/g, "").trim()
+        : (execResult.stderr.trim() || execResult.stdout.trim() || "Setup failed.");
     }
 
     return NextResponse.json({

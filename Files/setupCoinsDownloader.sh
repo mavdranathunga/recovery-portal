@@ -325,14 +325,6 @@ if [ -d "${COINS_HOME}/in" ]; then
     ls -lah "${COINS_HOME}/in"
 fi
 
-DOWNLOADED_DUMP=""
-if [ -f "${COINS_HOME}/in/lastfile" ]; then
-    DOWNLOADED_DUMP=$(cat "${COINS_HOME}/in/lastfile" 2>/dev/null | tr -d '[:space:]')
-fi
-if [ -z "$DOWNLOADED_DUMP" ] && [ -d "${COINS_HOME}/in" ]; then
-    DOWNLOADED_DUMP=$(ls -t "${COINS_HOME}/in"/*.dump 2>/dev/null | head -n 1 | xargs -r basename 2>/dev/null)
-fi
-
 echo
 echo "============================================================"
 echo "             SETUP COMPLETED SUCCESSFULLY"
@@ -340,8 +332,8 @@ echo "============================================================"
 echo
 echo "Till : $TILL_HOSTNAME"
 echo "Server : $SERVER"
-if [ -n "$DOWNLOADED_DUMP" ]; then
-    echo "Downloaded dump : $DOWNLOADED_DUMP"
+if [ -f "${COINS_HOME}/in/lastfile" ]; then
+    echo "Downloaded dump : $(cat "${COINS_HOME}/in/lastfile")"
 fi
 echo
 echo "SSH key authentication for zync is working."
