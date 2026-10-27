@@ -318,10 +318,17 @@ function KpiCard({
 /* ─── Server Card ───────────────────────────────────────── */
 function ServerCard({ srv }: { srv: ServerMetric }) {
   const isOnline = srv.status === "online";
-  // root mount is always the first entry
-  const rootMount = srv.mounts?.find((m) => m.path === "/") ?? null;
-  // remaining named mounts (skip root since it's in the ring)
-  const namedMounts = srv.mounts?.filter((m) => m.path !== "/") ?? [];
+  const [showAllMounts, setShowAllMounts] = useState(false);
+
+  // All mount points including root / (ensure root / is first)
+  const allMounts = srv.mounts ?? [];
+  const mounts = [...allMounts].sort((a, b) => {
+    if (a.path === "/") return -1;
+    if (b.path === "/") return 1;
+    return 0;
+  });
+
+  const visibleMounts = showAllMounts ? mounts : mounts.slice(0, 4);
 
   return (
     <div
@@ -368,23 +375,23 @@ function ServerCard({ srv }: { srv: ServerMetric }) {
 
       {isOnline ? (
         <div>
-          {/* Ring meters: CPU · RAM · Root Disk */}
-          <div className="flex items-end justify-around py-1 mb-4">
+          {/* Ring meters: CPU · RAM */}
+          <div className="flex items-end justify-center gap-10 py-1 mb-4">
             <RingMeter pct={srv.cpu} icon={Cpu} label="CPU" iconClass="text-blue-400" />
             <RingMeter pct={srv.mem} icon={Database} label="RAM" iconClass="text-violet-400" />
-            <RingMeter pct={rootMount?.pct ?? null} icon={HardDrive} label="Root /" iconClass="text-emerald-400" />
           </div>
 
-          {/* Named mount point bars */}
-          {namedMounts.length > 0 && (
+          {/* Mount point storage bars */}
+          {mounts.length > 0 && (
             <div className="space-y-2 pt-3 border-t border-white/[0.05]">
-              <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">
-                Storage Volumes
+              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                <span>Storage Volumes</span>
+                <span className="font-mono text-slate-600">{mounts.length} mounts</span>
               </div>
-              {namedMounts.map(({ path, pct }) => (
+              {visibleMounts.map(({ path, pct }) => (
                 <div key={path}>
                   <div className="flex justify-between items-center text-[11px] mb-1">
-                    <span className="font-mono text-slate-500">{path}</span>
+                    <span className="font-mono text-slate-400">{path}</span>
                     <span
                       className={`font-mono font-semibold ${
                         pct === null
@@ -402,6 +409,17 @@ function ServerCard({ srv }: { srv: ServerMetric }) {
                   <UtilBar pct={pct} />
                 </div>
               ))}
+
+              {mounts.length > 4 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllMounts(!showAllMounts)}
+                  className="w-full mt-2.5 py-1.5 px-3 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] text-[11px] font-medium text-slate-400 hover:text-slate-200 border border-white/[0.06] flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <span>{showAllMounts ? "Show less" : `Show ${mounts.length - 4} more`}</span>
+                  {showAllMounts ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -479,8 +497,22 @@ export default function DashboardPage() {
     ? tablespaces
     : tablespaces.slice(0, TABLESPACE_PREVIEW);
 
+  if (isInitialLoad) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[65vh] animate-in fade-in duration-300">
+        <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4 shadow-lg shadow-blue-500/10">
+          <RefreshCw className="h-8 w-8 text-blue-400 animate-spin" />
+        </div>
+        <h2 className="text-xl font-bold text-white tracking-tight">Loading Operations Dashboard...</h2>
+        <p className="text-slate-400 text-xs sm:text-sm mt-1.5 font-mono">
+          Probing Head Office Database and Server Infrastructure
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen pb-16 animate-in fade-in duration-500">
       {/* Ambient top glow */}
       <div
         aria-hidden
@@ -491,46 +523,8 @@ export default function DashboardPage() {
         }}
       />
 
-      {/* ── INITIAL LOAD OVERLAY ──────────────────────── */}
-      {isInitialLoad && (
-        <div className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-5 pointer-events-none">
-          {/* Spinner */}
-          <div className="relative w-14 h-14">
-            {/* outer ring */}
-            <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 56 56">
-              <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
-              <circle
-                cx="28" cy="28" r="24"
-                fill="none"
-                stroke="url(#spin-grad)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray="150.8"
-                strokeDashoffset="113.1"
-                style={{ animation: "spin 1s linear infinite" }}
-              />
-              <defs>
-                <linearGradient id="spin-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#3b82f6" />
-                  <stop offset="100%" stopColor="#8b5cf6" />
-                </linearGradient>
-              </defs>
-            </svg>
-            {/* inner pulse dot */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse" />
-            </div>
-          </div>
-          {/* Label */}
-          <div className="text-center">
-            <p className="text-sm font-medium text-slate-300 tracking-wide">Loading metrics</p>
-            <p className="text-xs text-slate-600 mt-0.5">Fetching DB &amp; server data…</p>
-          </div>
-        </div>
-      )}
-
-      {/* Content — hidden until initial load done */}
-      <div className={`relative max-w-7xl mx-auto space-y-10 transition-opacity duration-500 ${isInitialLoad ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+      {/* Content */}
+      <div className="relative max-w-7xl mx-auto space-y-10">
 
         {/* ── PAGE HEADER ─────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 pt-1">

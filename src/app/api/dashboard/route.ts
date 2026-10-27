@@ -75,7 +75,7 @@ export async function GET(request: Request) {
           ON b.BRANCH_ID = s.BRANCHID
         LEFT JOIN TBL_MAP_BRANCH2CONNECTION m
           ON m.BRANCH_ID = b.BRANCH_ID
-        WHERE s.LAST_SYNC_TIME < (SYSDATE - INTERVAL '5' HOUR)
+        WHERE s.LAST_SYNC_TIME < (SYSDATE - INTERVAL '3' HOUR)
           AND s.LAST_SYNC_TIME >= ADD_MONTHS(SYSDATE, -1)
       `;
 

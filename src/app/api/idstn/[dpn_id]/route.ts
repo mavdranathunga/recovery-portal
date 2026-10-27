@@ -6,9 +6,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ dpn_id: string }> } // In Next.js 15+, params is a Promise
+  { params }: { params: Promise<{ dpn_id: string }> }
 ) {
-  // Await the params since Next.js 15+ standardizes this
   const { dpn_id } = await params;
   const { searchParams } = new URL(request.url);
   const org = parseOrg(searchParams.get("org"));
@@ -55,7 +54,6 @@ export async function GET(
     const branchMap = await getBranchIpMap(org);
     const nameMap = await getBranchNameMap(org);
 
-
     // 1. Fetch from HO
     const hoResult = await hoConn.execute<any>(query, [dpn_id], { outFormat: 4002 /* oracledb.OUT_FORMAT_OBJECT */ });
     const hoRecord = (hoResult.rows && hoResult.rows.length > 0) ? hoResult.rows[0] : null;
@@ -68,26 +66,17 @@ export async function GET(
       console.error("Failed to close hoConn early:", err);
     }
 
-    // Determine target branches from HO record if it exists, otherwise we'd need to guess or it's a 404
-    // If it hasn't reached HO yet, the user must specify a shop, or we can't find it easily unless we broadcast.
-    // Let's assume the user just searched universally. If it's not in HO, we can only find it if we broadcast, which is bad.
-    // But wait, the user's prompt said "if I enter the idt number, I can detect where this is now."
-    // We cannot poll 450 DBs instantly to find an IDT that hasn't reached HO. 
-    // Usually, the IDT number contains the source branch code (e.g. S001-DPN-0001) or is uniquely identifiable.
-    // If it is, we can extract the shop code as a prefix. Let's see if we can try to guess the source branch from dpn_id.
-
     let srcBranch = hoRecord ? hoRecord.DPN_SRC_BRANCHID : null;
     let destBranch = hoRecord ? hoRecord.DPN_DEST_BRANCHID : null;
 
-    // Guess source branch if HO record is missing but IDT often starts with Branch Code (e.g. 'S001...')
+    // Guess source branch if HO record is missing but IDSTN often starts with Branch Code (e.g. 'S001...')
     if (!hoRecord) {
       if (dpn_id.length >= 4) {
-        // e.g., 'S00112345' or 'S001-...'
         const maybeBranch = dpn_id.split("-")[0].toUpperCase();
         if (branchMap.has(maybeBranch) || nameMap.has(maybeBranch)) {
           srcBranch = maybeBranch;
         } else if (branchMap.has(dpn_id.substring(0, 4).toUpperCase())) {
-           srcBranch = dpn_id.substring(0, 4).toUpperCase();
+          srcBranch = dpn_id.substring(0, 4).toUpperCase();
         }
       }
     }
@@ -105,7 +94,6 @@ export async function GET(
           const srcResult = await srcConn.execute<any>(outletQuery, [dpn_id], { outFormat: 4002 });
           if (srcResult.rows && srcResult.rows.length > 0) {
             sourceRecord = srcResult.rows[0];
-            // If HO record was missing, we can now populate destBranch from the source record!
             if (!destBranch) destBranch = sourceRecord.DPN_DEST_BRANCHID;
           }
         } catch (err: any) {
@@ -144,7 +132,6 @@ export async function GET(
     }
 
     // Format output
-    // A helper to normalize the record keys to standard lowercase for the frontend
     const normalizeRecord = (rec: any) => {
       if (!rec || rec.error) return rec;
       return {
@@ -179,7 +166,7 @@ export async function GET(
     });
 
   } catch (err: any) {
-    console.error("Error in IDT API:", err);
+    console.error("Error in IDSTN API:", err);
     return NextResponse.json({ error: "Backend error", details: err.message }, { status: 500 });
   } finally {
     if (hoConn) {

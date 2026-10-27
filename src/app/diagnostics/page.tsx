@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Server, Activity, RefreshCw, ChevronRight, Home, Cpu, Database, HardDrive, Play, Search, ArrowLeft, Terminal, CheckCircle2, XCircle, Maximize2, Minimize2, Wifi, WifiOff, Signal } from "lucide-react";
+import { Server, Activity, RefreshCw, ChevronRight, Home, Cpu, Database, HardDrive, Play, Search, ArrowLeft, Terminal, CheckCircle2, XCircle, Maximize2, Minimize2, Wifi, WifiOff, Signal, Timer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useOrg } from "@/lib/OrgContext";
@@ -18,6 +18,130 @@ interface ActionResponse {
   code?: number | null;
   error?: string;
   details?: string;
+  stats?: SystemStats;
+}
+
+interface SystemStats {
+  cpu: number | null;
+  mem: number | null;
+  uptime: string | null;
+  mounts: { path: string; pct: number | null }[];
+}
+
+const DIAGNOSTICS_MOUNTS = ["/", "/var/spool", "/u01", "/coins", "/storage", "/home"];
+
+/* ─── Ring Meter Component ──────────────────────────────── */
+function RingMeter({
+  pct,
+  icon: Icon,
+  label,
+  iconClass = "text-blue-400",
+  size = 64,
+  stroke = 5,
+}: {
+  pct: number | null;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  iconClass?: string;
+  size?: number;
+  stroke?: number;
+}) {
+  const r = (size - stroke * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const safePct = pct === null ? 0 : Math.min(100, Math.max(0, pct));
+  const dash = (safePct / 100) * circ;
+
+  const ringColor =
+    pct === null
+      ? "#334155"
+      : pct >= 85
+        ? "#f43f5e"
+        : pct >= 70
+          ? "#f59e0b"
+          : "#10b981";
+
+  const textColor =
+    pct === null
+      ? "text-slate-500"
+      : pct >= 85
+        ? "text-rose-400"
+        : pct >= 70
+          ? "text-amber-400"
+          : "text-emerald-400";
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg
+          width={size}
+          height={size}
+          className="-rotate-90"
+          style={{ transformOrigin: "50% 50%" }}
+        >
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="rgba(255,255,255,0.06)"
+            strokeWidth={stroke}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={ringColor}
+            strokeWidth={stroke}
+            strokeDasharray={circ}
+            strokeDashoffset={circ - dash}
+            strokeLinecap="round"
+            style={{
+              transition: "stroke-dashoffset 0.85s cubic-bezier(0.16,1,0.3,1), stroke 0.4s ease",
+              filter: pct !== null ? `drop-shadow(0 0 5px ${ringColor}90)` : "none",
+            }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Icon className={`w-4 h-4 ${iconClass}`} />
+        </div>
+      </div>
+      <div className={`text-[11px] font-bold font-mono ${textColor}`}>
+        {pct !== null ? `${pct}%` : "N/A"}
+      </div>
+      <div className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</div>
+    </div>
+  );
+}
+
+/* ─── Utilization Bar ───────────────────────────────────── */
+function UtilBar({ pct }: { pct: number | null }) {
+  const barColor =
+    pct === null
+      ? "bg-slate-700"
+      : pct >= 85
+        ? "bg-gradient-to-r from-rose-600 to-rose-400"
+        : pct >= 70
+          ? "bg-gradient-to-r from-amber-600 to-amber-400"
+          : "bg-gradient-to-r from-emerald-600 to-emerald-400";
+
+  const glow =
+    pct !== null && pct >= 85
+      ? "0 0 8px rgba(244,63,94,0.55)"
+      : pct !== null && pct >= 70
+        ? "0 0 8px rgba(245,158,11,0.5)"
+        : pct !== null
+          ? "0 0 6px rgba(16,185,129,0.4)"
+          : "none";
+
+  return (
+    <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+      <div
+        className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+        style={{ width: `${Math.min(100, Math.max(0, pct || 0))}%`, boxShadow: glow }}
+      />
+    </div>
+  );
 }
 
 export default function DiagnosticsPage() {
@@ -32,6 +156,7 @@ export default function DiagnosticsPage() {
   // Diagnostics states
   const [loadingStats, setLoadingStats] = useState(false);
   const [statsData, setStatsData] = useState<string | null>(null);
+  const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
 
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [terminalOutput, setTerminalOutput] = useState<string>("");
@@ -75,14 +200,39 @@ export default function DiagnosticsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "system_stats" })
       });
-      const data = await res.json();
+      const data: ActionResponse = await res.json();
       if (data.error) {
         setStatsData(`Error: ${data.error}\n${data.details || ""}`);
+        setSystemStats(null);
       } else {
         setStatsData(`${data.stdout || ""}\n${data.stderr || ""}`);
+        if (data.stats) {
+          setSystemStats(data.stats);
+        } else if (data.stdout) {
+          const matchCpu = data.stdout.match(/CPU:([0-9.]+)/);
+          const matchMem = data.stdout.match(/MEM:([0-9.]+)/);
+          const matchUptime = data.stdout.match(/UPTIME:(.+)/);
+          const parsedMounts = DIAGNOSTICS_MOUNTS.map((m) => {
+            const safe = m.replace(/\//g, "_").replace(/^_/, "") || "root";
+            const re = new RegExp(`MOUNT_${safe}:([0-9]+|N\\/A)`);
+            const match = data.stdout?.match(re);
+            const raw = match ? match[1] : null;
+            return {
+              path: m,
+              pct: raw && raw !== "N/A" ? parseInt(raw, 10) : null,
+            };
+          });
+          setSystemStats({
+            cpu: matchCpu && !isNaN(parseFloat(matchCpu[1])) ? Math.round(parseFloat(matchCpu[1])) : null,
+            mem: matchMem && !isNaN(parseFloat(matchMem[1])) ? Math.round(parseFloat(matchMem[1])) : null,
+            uptime: matchUptime ? matchUptime[1].trim() : null,
+            mounts: parsedMounts,
+          });
+        }
       }
     } catch (err: any) {
       setStatsData(`Failed to fetch stats: ${err.message}`);
+      setSystemStats(null);
     } finally {
       setLoadingStats(false);
     }
@@ -110,10 +260,10 @@ export default function DiagnosticsPage() {
     }
   };
 
-
   const handleSelectBranch = (b: Branch) => {
     setSelectedBranch(b);
     setStatsData(null);
+    setSystemStats(null);
     setTerminalOutput("");
     setDbStatus({ loading: false });
     setTomcatStatus({ loading: false });
@@ -207,49 +357,16 @@ export default function DiagnosticsPage() {
     }
   };
 
-  let loadAvg = "N/A";
-  let memFree = "N/A";
-  let storageUsage = "N/A";
-
-  if (statsData) {
-    const loadMatch = statsData.match(/=== CPU Load ===\s+(.*)/);
-    if (loadMatch) loadAvg = loadMatch[1].trim();
-
-    const memMatch = statsData.match(/Mem:\s+\d+\s+(\d+)\s+(\d+)/);
-    if (memMatch) memFree = `${memMatch[2]} MB free`;
-
-    const storageMatch = statsData.match(/\/$/m);
-    if (storageMatch && storageMatch.input) {
-      const lines = storageMatch.input.split('\n');
-      const rootLine = lines.find(l => l.trim().endsWith('/'));
-      if (rootLine) {
-        const parts = rootLine.trim().split(/\s+/);
-        if (parts.length >= 5) {
-          storageUsage = `${parts[2]} / ${parts[1]} (${parts[4]})`;
-        }
-      }
-    }
-  }
-
   return (
-    <div className="flex flex-col md:flex-row gap-6 min-h-[85vh] md:h-[85vh] animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-6 min-h-[calc(100vh-6rem)] animate-in fade-in duration-500 pb-10">
 
       {/* Sidebar - Branch List (hidden on mobile when a branch is selected) */}
-      <div className={`w-full md:w-1/4 flex-col glass-card overflow-hidden h-[420px] md:h-auto ${selectedBranch ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`w-full md:w-80 md:shrink-0 flex-col glass-card overflow-hidden h-[450px] md:h-[calc(100vh-6rem)] md:sticky md:top-6 ${selectedBranch ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <Activity className="h-5 w-5 text-emerald-400" />
             Diagnostics
           </h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => router.push('/')}
-              className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-sm bg-slate-800/50 hover:bg-slate-700/50 px-2 py-1.5 rounded"
-            >
-              <Home className="h-4 w-4" />
-              <span className="hidden sm:inline">Home</span>
-            </button>
-          </div>
         </div>
         <div className="p-4 border-b border-white/10">
           <div className="relative">
@@ -287,10 +404,10 @@ export default function DiagnosticsPage() {
                     disabled={pingStates[branch.id] === 'loading'}
                     title={branch.ip || 'Ping'}
                     className={`p-1.5 rounded transition-colors ${pingStates[branch.id] === 'up'
-                        ? 'text-emerald-400 bg-emerald-500/10'
-                        : pingStates[branch.id] === 'down'
-                          ? 'text-red-400 bg-red-500/10'
-                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'
+                      ? 'text-emerald-400 bg-emerald-500/10'
+                      : pingStates[branch.id] === 'down'
+                        ? 'text-red-400 bg-red-500/10'
+                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'
                       }`}
                   >
                     {pingStates[branch.id] === 'loading' ? (
@@ -312,150 +429,355 @@ export default function DiagnosticsPage() {
       </div>
 
       {/* Main Panel - Diagnostics */}
-      <div className={`w-full md:w-3/4 glass-card flex-col p-4 sm:p-6 overflow-y-auto custom-scrollbar ${!selectedBranch ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`w-full flex-1 flex-col glass-card p-4 sm:p-6 ${!selectedBranch ? 'hidden md:flex' : 'flex'}`}>
         {!selectedBranch ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 min-h-[500px]">
             <Server className="h-16 w-16 mb-4 opacity-20" />
             <p className="text-lg">Select a branch to view System Diagnostics</p>
           </div>
         ) : (
-          <div className="animate-in fade-in duration-300 flex flex-col h-full">
-            <div className="mb-6">
-              <button
-                onClick={() => setSelectedBranch(null)}
-                className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs mb-2 transition-colors group md:hidden"
-              >
-                <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
-                Back to Outlets
-              </button>
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">{selectedBranch.id} - {selectedBranch.name}</h2>
-              <p className="text-slate-400 font-mono text-xs sm:text-sm">IP: {selectedBranch.ip}</p>
+          <div className="animate-in fade-in duration-300 flex flex-col space-y-6">
+            {/* Header info */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <button
+                  onClick={() => setSelectedBranch(null)}
+                  className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs mb-2 transition-colors group md:hidden"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                  Back to Outlets
+                </button>
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">{selectedBranch.id} - {selectedBranch.name}</h2>
+                <div className="flex flex-wrap items-center gap-2 text-slate-400 font-mono text-xs sm:text-sm">
+                  <span>IP: {selectedBranch.ip}</span>
+                  {systemStats?.uptime && (
+                    <>
+                      <span className="text-slate-600">·</span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-mono text-slate-300 bg-white/[0.04] border border-white/[0.08]">
+                        <Timer className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>up {systemStats.uptime}</span>
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick status badge */}
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Connected
+                </span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
-              {/* Telemetry */}
-              <div className="bg-slate-900/50 rounded-xl border border-slate-700/50 p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-white flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-emerald-400" />
-                    Live Telemetry
-                  </h3>
-                  <button
-                    onClick={() => fetchStats(selectedBranch.id)}
-                    disabled={loadingStats}
-                    className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded transition-colors text-slate-400"
-                  >
-                    <RefreshCw className={cn("h-4 w-4", loadingStats && "animate-spin")} />
-                  </button>
-                </div>
+            {/* Upper Row: Telemetry & Service Health */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Telemetry Card */}
+              <div
+                className="rounded-2xl border border-white/[0.08] p-5 flex flex-col justify-between"
+                style={{
+                  background: "rgba(15,23,42,0.6)",
+                  backdropFilter: "blur(14px)",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)",
+                }}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <Activity className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-white text-sm">Live Telemetry</h3>
+                        <p className="text-[11px] text-slate-500">Resource utilization & mounts</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => fetchStats(selectedBranch.id)}
+                        disabled={loadingStats}
+                        className="p-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-white/[0.06] rounded-lg transition-colors text-slate-400 hover:text-white"
+                        title="Refresh metrics"
+                      >
+                        <RefreshCw className={cn("h-4 w-4", loadingStats && "animate-spin")} />
+                      </button>
+                    </div>
+                  </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-slate-950 p-3 rounded-lg flex flex-col items-center text-center">
-                    <Cpu className="h-5 w-5 text-indigo-400 mb-1" />
-                    <span className="text-[10px] text-slate-500 font-medium uppercase mb-0.5">Load Avg</span>
-                    <span className="text-xs font-mono text-slate-300">{loadingStats ? "..." : loadAvg}</span>
+                  {/* CPU and RAM Rings */}
+                  <div className="flex items-center justify-around py-3 mb-4 rounded-xl bg-slate-950/50 border border-white/[0.04]">
+                    <RingMeter
+                      pct={systemStats?.cpu ?? null}
+                      icon={Cpu}
+                      label="CPU"
+                      iconClass="text-blue-400"
+                      size={68}
+                    />
+                    <RingMeter
+                      pct={systemStats?.mem ?? null}
+                      icon={Database}
+                      label="RAM"
+                      iconClass="text-violet-400"
+                      size={68}
+                    />
                   </div>
-                  <div className="bg-slate-950 p-3 rounded-lg flex flex-col items-center text-center">
-                    <Database className="h-5 w-5 text-blue-400 mb-1" />
-                    <span className="text-[10px] text-slate-500 font-medium uppercase mb-0.5">Memory</span>
-                    <span className="text-xs font-mono text-slate-300">{loadingStats ? "..." : memFree}</span>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-lg flex flex-col items-center text-center">
-                    <HardDrive className="h-5 w-5 text-purple-400 mb-1" />
-                    <span className="text-[10px] text-slate-500 font-medium uppercase mb-0.5">Storage</span>
-                    <span className="text-xs font-mono text-slate-300">{loadingStats ? "..." : storageUsage}</span>
+
+                  {/* Named storage mount point bars (Clean 2-column grid) */}
+                  <div className="space-y-2.5 pt-3 border-t border-white/[0.06]">
+                    <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                      <span className="flex items-center gap-1.5">
+                        <HardDrive className="w-3 h-3 text-purple-400" />
+                        Storage Partitions
+                      </span>
+                      {loadingStats && (
+                        <span className="text-[10px] text-slate-500 font-normal lowercase flex items-center gap-1">
+                          <RefreshCw className="w-2.5 h-2.5 animate-spin" /> polling...
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2.5">
+                      {DIAGNOSTICS_MOUNTS.map((mountPath) => {
+                        const mountData = systemStats?.mounts?.find((m) => m.path === mountPath);
+                        const pct = mountData ? mountData.pct : null;
+
+                        return (
+                          <div key={mountPath} className="space-y-1">
+                            <div className="flex justify-between items-center text-[11px]">
+                              <span className="font-mono text-slate-400">{mountPath}</span>
+                              <span
+                                className={`font-mono font-semibold ${pct === null
+                                  ? "text-slate-600"
+                                  : pct >= 85
+                                    ? "text-rose-400"
+                                    : pct >= 70
+                                      ? "text-amber-400"
+                                      : "text-emerald-400"
+                                  }`}
+                              >
+                                {pct !== null ? `${pct}%` : "—"}
+                              </span>
+                            </div>
+                            <UtilBar pct={pct} />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Service Health */}
-              <div className="bg-slate-900/50 rounded-xl border border-slate-700/50 p-5">
-                <h3 className="font-semibold text-white mb-4">Service Health</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-2.5 bg-slate-950 rounded border border-slate-800">
-                    <div className="flex items-center gap-2.5">
-                      <Database className="h-4 w-4 text-slate-400" />
-                      <div>
-                        <div className="text-sm font-medium text-slate-300">Oracle-XE</div>
-                        <div className="text-[10px] text-slate-500">{dbStatus.msg || "..."}</div>
-                      </div>
-                    </div>
+              <div
+                className="rounded-2xl border border-white/[0.08] p-5 flex flex-col justify-between"
+                style={{
+                  background: "rgba(15,23,42,0.6)",
+                  backdropFilter: "blur(14px)",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)",
+                }}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => checkDb(selectedBranch.id)} disabled={dbStatus.loading} className="p-1 hover:bg-slate-800 rounded">
-                        <RefreshCw className={cn("h-3 w-3 text-slate-500", dbStatus.loading && "animate-spin")} />
-                      </button>
-                      {dbStatus.loading ? null : dbStatus.success ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
+                      <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <Server className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-white text-sm">Service Health</h3>
+                        <p className="text-[11px] text-slate-500">Core database & application daemons</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-2.5 bg-slate-950 rounded border border-slate-800">
-                    <div className="flex items-center gap-2.5">
-                      <Server className="h-4 w-4 text-slate-400" />
-                      <div>
-                        <div className="text-sm font-medium text-slate-300">Back-Office</div>
-                        <div className="text-[10px] text-slate-500">{tomcatStatus.msg || "..."}</div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3.5 bg-slate-950/50 rounded-xl border border-white/[0.04]">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                          <Database className="h-4 w-4 text-indigo-400" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-slate-200">Oracle-XE</div>
+                          <div className="text-[11px] text-slate-500">{dbStatus.msg || "Status unknown"}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => checkDb(selectedBranch.id)}
+                          disabled={dbStatus.loading}
+                          className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                          title="Check Oracle"
+                        >
+                          <RefreshCw className={cn("h-3.5 w-3.5", dbStatus.loading && "animate-spin")} />
+                        </button>
+                        {dbStatus.loading ? null : dbStatus.success ? (
+                          <span className="p-1 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                          </span>
+                        ) : (
+                          <span className="p-1 rounded-md bg-rose-500/10 border border-rose-500/20">
+                            <XCircle className="h-4 w-4 text-rose-400" />
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => checkTomcat(selectedBranch.id)} disabled={tomcatStatus.loading} className="p-1 hover:bg-slate-800 rounded">
-                        <RefreshCw className={cn("h-3 w-3 text-slate-500", tomcatStatus.loading && "animate-spin")} />
-                      </button>
-                      {tomcatStatus.loading ? null : tomcatStatus.success ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
+
+                    <div className="flex items-center justify-between p-3.5 bg-slate-950/50 rounded-xl border border-white/[0.04]">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                          <Server className="h-4 w-4 text-sky-400" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-slate-200">Back-Office</div>
+                          <div className="text-[11px] text-slate-500">{tomcatStatus.msg || "Status unknown"}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => checkTomcat(selectedBranch.id)}
+                          disabled={tomcatStatus.loading}
+                          className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                          title="Check Tomcat"
+                        >
+                          <RefreshCw className={cn("h-3.5 w-3.5", tomcatStatus.loading && "animate-spin")} />
+                        </button>
+                        {tomcatStatus.loading ? null : tomcatStatus.success ? (
+                          <span className="p-1 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                          </span>
+                        ) : (
+                          <span className="p-1 rounded-md bg-rose-500/10 border border-rose-500/20">
+                            <XCircle className="h-4 w-4 text-rose-400" />
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-              {/* Actions Box */}
+            {/* Lower Row: Quick Actions & Terminal Output */}
+            <div className="flex flex-col lg:flex-row gap-6 pt-2">
+              {/* Quick Actions Card */}
               {!terminalMaximized && (
-                <div className="w-full lg:w-1/3 space-y-3">
-                  <h3 className="font-semibold text-white mb-3">Quick Actions</h3>
-                  <ActionBtn label="Oracle Status" action="oracle_status" icon={<Activity className="h-4 w-4" />} loading={loadingAction} onClick={runAction} />
-                  <ActionBtn label="Restart Oracle" action="oracle_restart" icon={<Play className="h-4 w-4" />} loading={loadingAction} onClick={runAction} danger />
-                  <div className="h-px bg-slate-800 my-2" />
-                  <ActionBtn label="Restart Tomcat" action="tomcat_restart" icon={<Play className="h-4 w-4" />} loading={loadingAction} onClick={runAction} danger />
+                <div
+                  className="w-full lg:w-80 shrink-0 rounded-2xl border border-white/[0.08] p-5 flex flex-col justify-between"
+                  style={{
+                    background: "rgba(15,23,42,0.6)",
+                    backdropFilter: "blur(14px)",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)",
+                  }}
+                >
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <Play className="h-4 w-4 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-white text-sm">Quick Actions</h3>
+                        <p className="text-[11px] text-slate-500">Service controls & operations</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <ActionBtn
+                        label="Oracle Status"
+                        action="oracle_status"
+                        icon={<Activity className="h-4 w-4 text-blue-400" />}
+                        loading={loadingAction}
+                        onClick={runAction}
+                      />
+                      <ActionBtn
+                        label="Restart Oracle"
+                        action="oracle_restart"
+                        icon={<Play className="h-4 w-4 text-rose-400" />}
+                        loading={loadingAction}
+                        onClick={runAction}
+                        danger
+                      />
+                      <div className="h-px bg-white/[0.06] my-1.5" />
+                      <ActionBtn
+                        label="Restart Tomcat"
+                        action="tomcat_restart"
+                        icon={<Play className="h-4 w-4 text-amber-400" />}
+                        loading={loadingAction}
+                        onClick={runAction}
+                        danger
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
               {/* Terminal Box */}
-              <div className={`w-full ${terminalMaximized ? '' : 'lg:w-2/3'} border border-slate-700/50 rounded-xl overflow-hidden flex flex-col bg-black/60`}>
-                <div className="px-4 py-2 border-b border-slate-800 bg-slate-900/80 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+              <div
+                className="flex-1 min-h-[340px] rounded-2xl border border-white/[0.08] overflow-hidden flex flex-col shadow-2xl"
+                style={{
+                  background: "rgba(10,14,26,0.85)",
+                  backdropFilter: "blur(14px)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)",
+                }}
+              >
+                {/* Terminal Header */}
+                <div className="px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-1.5 mr-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                    </div>
                     <Terminal className="h-4 w-4 text-slate-400" />
-                    <span className="text-xs font-medium text-slate-300 uppercase tracking-wider">Terminal Output</span>
+                    <span className="text-xs font-semibold text-slate-300 font-mono tracking-wider">TERMINAL CONSOLE</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => setTerminalOutput("")} className="text-xs text-slate-500 hover:text-slate-300">Clear</button>
-                    <button onClick={() => setTerminalMaximized(prev => !prev)} className="text-slate-500 hover:text-slate-300 transition-colors" title={terminalMaximized ? 'Minimize' : 'Maximize'}>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setTerminalOutput("")}
+                      className="px-2.5 py-1 rounded-md text-[11px] font-mono text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      onClick={() => setTerminalMaximized((prev) => !prev)}
+                      className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                      title={terminalMaximized ? "Minimize" : "Maximize"}
+                    >
                       {terminalMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                     </button>
                   </div>
                 </div>
-                <div className="p-4 overflow-y-auto flex-1 font-mono text-xs text-emerald-400 whitespace-pre-wrap">
-                  {terminalOutput || "Ready. Select an action to begin."}
+
+                {/* Terminal Output */}
+                <div className="p-4 overflow-y-auto flex-1 font-mono text-xs text-emerald-400 whitespace-pre-wrap min-h-[190px] max-h-[420px] custom-scrollbar selection:bg-emerald-500/30">
+                  {terminalOutput || "Ready. Select an action above or execute a custom bash command below."}
                 </div>
+
                 {/* Custom Command Input */}
                 <form
-                  onSubmit={(e) => { e.preventDefault(); runCustomCommand(); }}
-                  className="px-4 py-3 bg-slate-950 border-t border-slate-800 flex gap-2 items-center"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    runCustomCommand();
+                  }}
+                  className="px-4 py-3 bg-black/50 border-t border-white/[0.06] flex gap-2.5 items-center"
                 >
-                  <span className="text-emerald-500 font-mono text-sm font-bold">$</span>
+                  <span className="text-emerald-400 font-mono text-sm font-bold">$</span>
                   <input
                     type="text"
                     value={customCommand}
                     onChange={(e) => setCustomCommand(e.target.value)}
-                    placeholder="Enter custom bash command..."
-                    className="flex-1 bg-transparent border-none outline-none font-mono text-sm text-slate-200 placeholder-slate-600 focus:ring-0"
+                    placeholder="Enter bash command (e.g., uptime, ps -ef | grep java, df -h)..."
+                    className="flex-1 bg-transparent border-none outline-none font-mono text-xs sm:text-sm text-slate-200 placeholder-slate-600 focus:ring-0"
                     disabled={loadingAction !== null}
                   />
                   <button
                     type="submit"
                     disabled={!customCommand.trim() || loadingAction !== null}
-                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium rounded transition-colors flex items-center gap-2"
+                    className="px-4 py-1.5 rounded-lg font-medium text-xs text-white transition-all duration-200 active:scale-95 disabled:opacity-40 hover:brightness-110 flex items-center gap-1.5 shrink-0"
+                    style={{
+                      background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                      boxShadow: "0 2px 10px rgba(37,99,235,0.3)",
+                    }}
                   >
-                    {loadingAction === 'custom' ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+                    {loadingAction === "custom" ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
                     Run
                   </button>
                 </form>
@@ -470,22 +792,39 @@ export default function DiagnosticsPage() {
   );
 }
 
-function ActionBtn({ label, action, icon, loading, onClick, danger }: { label: string, action: string, icon: React.ReactNode, loading: string | null, onClick: (a: string) => void, danger?: boolean }) {
+function ActionBtn({
+  label,
+  action,
+  icon,
+  loading,
+  onClick,
+  danger,
+}: {
+  label: string;
+  action: string;
+  icon: React.ReactNode;
+  loading: string | null;
+  onClick: (a: string) => void;
+  danger?: boolean;
+}) {
   const isLoading = loading === action;
   return (
     <button
       onClick={() => onClick(action)}
       disabled={loading !== null}
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all",
+        "w-full flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-200 active:scale-[0.98]",
         danger
-          ? "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20"
-          : "bg-slate-800/50 border-slate-700/50 text-slate-200 hover:bg-slate-800",
+          ? "bg-rose-500/10 border-rose-500/25 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/40 shadow-sm shadow-rose-950/30"
+          : "bg-white/[0.04] border-white/[0.08] text-slate-200 hover:bg-white/[0.08] hover:border-white/[0.15] shadow-sm",
         isLoading && "opacity-50 cursor-not-allowed"
       )}
     >
-      {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : icon}
-      {label}
+      <span className="flex items-center gap-2.5">
+        {isLoading ? <RefreshCw className="h-4 w-4 animate-spin text-slate-400" /> : icon}
+        <span>{label}</span>
+      </span>
+      <ChevronRight className="w-3.5 h-3.5 opacity-40" />
     </button>
   );
 }
