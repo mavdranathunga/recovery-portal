@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, ShieldCheck, ServerCrash, HardDrive, Terminal, Building2, Play, LogOut, Menu, X } from "lucide-react";
@@ -8,6 +8,11 @@ import { useOrg } from "@/lib/OrgContext";
 
 
 const navItems = [
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: Activity,
+  },
   {
     href: "/recovery",
     label: "Recovery",
@@ -29,6 +34,11 @@ export function NavBar() {
   const { org, setOrg } = useOrg();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Hide the navbar on the login page for a clean entrance
   if (pathname === "/login") {
