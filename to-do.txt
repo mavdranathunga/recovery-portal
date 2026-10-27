@@ -1,1 +1,0 @@
-remove dasboard and offline-dump from the nav bar.

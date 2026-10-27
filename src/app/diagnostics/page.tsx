@@ -431,9 +431,52 @@ export default function DiagnosticsPage() {
       {/* Main Panel - Diagnostics */}
       <div className={`w-full flex-1 flex-col glass-card p-4 sm:p-6 ${!selectedBranch ? 'hidden md:flex' : 'flex'}`}>
         {!selectedBranch ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 min-h-[500px]">
-            <Server className="h-16 w-16 mb-4 opacity-20" />
-            <p className="text-lg">Select a branch to view System Diagnostics</p>
+          <div className="flex-1 flex flex-col items-center justify-center min-h-[500px] select-none">
+            {/* Glowing icon */}
+            <div className="relative mb-6">
+              <div className="absolute inset-0 rounded-2xl bg-emerald-500/20 blur-xl scale-150" />
+              <div className="relative w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                <Server className="h-10 w-10 text-emerald-400 opacity-70" />
+              </div>
+            </div>
+
+            <h3 className="text-lg font-bold text-white tracking-tight mb-2">
+              No Outlet Selected
+            </h3>
+            <p className="text-slate-500 text-sm text-center max-w-xs mb-8 leading-relaxed">
+              Choose a branch from the left panel to view live telemetry, service health checks, and run remote commands.
+            </p>
+
+            {/* Feature hints */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-md">
+              <div className="glass-card p-3.5 rounded-xl border border-white/[0.06] flex flex-col items-center gap-2 text-center">
+                <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <Activity className="h-4 w-4 text-blue-400" />
+                </div>
+                <span className="text-[11px] font-semibold text-slate-300">Live Telemetry</span>
+                <span className="text-[10px] text-slate-600 leading-tight">CPU, RAM & storage mounts</span>
+              </div>
+              <div className="glass-card p-3.5 rounded-xl border border-white/[0.06] flex flex-col items-center gap-2 text-center">
+                <div className="p-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
+                  <CheckCircle2 className="h-4 w-4 text-violet-400" />
+                </div>
+                <span className="text-[11px] font-semibold text-slate-300">Service Health</span>
+                <span className="text-[10px] text-slate-600 leading-tight">Oracle DB & Tomcat status</span>
+              </div>
+              <div className="glass-card p-3.5 rounded-xl border border-white/[0.06] flex flex-col items-center gap-2 text-center">
+                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <Terminal className="h-4 w-4 text-amber-400" />
+                </div>
+                <span className="text-[11px] font-semibold text-slate-300">Remote Terminal</span>
+                <span className="text-[10px] text-slate-600 leading-tight">Run commands over SSH</span>
+              </div>
+            </div>
+
+            {/* Arrow hint */}
+            <div className="mt-8 flex items-center gap-2 text-xs text-slate-600 font-mono">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Select an outlet from the left panel to get started</span>
+            </div>
           </div>
         ) : (
           <div className="animate-in fade-in duration-300 flex flex-col space-y-6">
